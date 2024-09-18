@@ -1,0 +1,64 @@
+import { TransactionInterface, TransactionStatus, TransactionType } from "../interfaces/transaction.interface";
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Network } from "../interfaces/wallet.interface";
+
+@Entity()
+export class TransactionModel implements TransactionInterface {
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
+
+  @Column({ type: "uuid" })
+  wallet_id: string;
+
+  @Column({
+    type: "enum",
+    enum: TransactionType,
+    enumName: "TransactionType",
+  })
+  type: TransactionType;
+
+  @Column({
+    type: "enum",
+    enum: Network,
+    enumName: "Network",
+  })
+  network: Network;
+
+  @Column()
+  hash: string;
+
+  @Column({
+    type: "enum",
+    enum: TransactionStatus,
+    enumName: "TransactionStatus",
+    nullable: true,
+  })
+  status: TransactionStatus;
+
+  @Column({ type: "float", default: 0 })
+  amount: number;
+
+  @Column({ type: "float", default: 0 })
+  amount_usd: number;
+
+  @Column()
+  to: string;
+
+  @Column()
+  from: string;
+
+  @Column()
+  currency: string;
+
+  @Column({ type: "float", default: 0 })
+  fee: number;
+
+  @Column({ type: "float", default: 0 })
+  fee_usd: number;
+
+  @UpdateDateColumn()
+  updated_at: string;
+
+  @CreateDateColumn()
+  created_at: string;
+}

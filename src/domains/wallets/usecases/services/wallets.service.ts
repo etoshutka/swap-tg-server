@@ -1,0 +1,538 @@
+import { networkNativeSymbol, usdtContractByNetwork } from "../../domain/consts/network.const";
+import { ServiceMethodResponseDto } from "src/common/dto/service-method-response.dto";
+import { TransactionModel } from "../../domain/models/transaction.model";
+import { Network, WalletType } from "../../domain/interfaces/wallet.interface";
+import { SecretsModel } from "../../domain/models/secrets.model";
+import { WalletModel } from "../../domain/models/wallet.model";
+import { DB_DATE_FORMAT } from "src/common/consts/date.const";
+import { TokenModel } from "../../domain/models/token.model";
+import { HttpStatus, Injectable, Logger } from "@nestjs/common";
+import * as types from "../interfaces/wallets.interface";
+import { InjectRepository } from "@nestjs/typeorm";
+import * as sdkTypes from "../interfaces/sdk.interface";
+import { SdkService } from "./sdk.service";
+import { Repository } from "typeorm";
+import * as moment from "moment";
+
+@Injectable()
+export class WalletsService {
+  private readonly logger = (context: string) => new Logger(`WalletsModule > WalletsService > ${context}`);
+
+  constructor(
+    private readonly sdkService: SdkService,
+    @InjectRepository(TokenModel)
+    private readonly tokenRepo: Repository<TokenModel>,
+    @InjectRepository(WalletModel)
+    private readonly walletRepo: Repository<WalletModel>,
+    @InjectRepository(SecretsModel)
+    private readonly secretsRepo: Repository<SecretsModel>,
+    @InjectRepository(TransactionModel)
+    private readonly transactionRepo: Repository<TransactionModel>,
+  ) {}
+
+  /**
+   * @name getWallet
+   * @desc Get wallet
+   * @param {types.GetWalletParams} params
+   * @returns {Promise<ServiceMethodResponseDto<WalletModel>>}
+   */
+  async getWallet(params: types.GetWalletParams): Promise<ServiceMethodResponseDto<WalletModel>> {
+    let wallet: WalletModel = await this.walletRepo.findOne({ where: { id: params.id } });
+
+    if (!wallet) {
+      return new ServiceMethodResponseDto<WalletModel>({ ok: false, status: HttpStatus.NOT_FOUND });
+    }
+
+    wallet = (await this.updateWalletBalances({ wallet })).data;
+    wallet.tokens = await this.tokenRepo.find({ where: { wallet_id: wallet.id } });
+
+    wallet.tokens = wallet.tokens.sort((a, b) => {
+      const aIsNative = a.symbol === networkNativeSymbol[wallet.network];
+      const bIsNative = b.symbol === networkNativeSymbol[wallet.network];
+      if (aIsNative && !bIsNative) return -1;
+      if (!aIsNative && bIsNative) return 1;
+      return b.balance_usd - a.balance_usd;
+    });
+
+    return new ServiceMethodResponseDto<WalletModel>({ ok: true, data: wallet, status: HttpStatus.OK });
+  }
+
+  /**
+   * @name getWallets
+   * @desc Get wallets
+   * @param {types.GetWalletsParams} params
+   * @returns {Promise<ServiceMethodResponseDto<WalletModel[]>>}
+   */
+  async getWallets(params: types.GetWalletsParams): Promise<ServiceMethodResponseDto<WalletModel[]>> {
+    const wallets: WalletModel[] = await this.walletRepo.find({ where: { user_id: params.user_id } });
+
+    for (const wallet of wallets) {
+      wallet.tokens = await this.tokenRepo.find({ where: { wallet_id: wallet.id } });
+      const secrets: SecretsModel = await this.secretsRepo.findOne({ where: { wallet_id: wallet.id } });
+      wallet.private_key = secrets.mnemonic;
+    }
+
+    return new ServiceMethodResponseDto<WalletModel[]>({ ok: true, data: wallets, status: HttpStatus.OK });
+  }
+
+  /**
+   * @name deleteWallet
+   * @desc Delete wallet
+   * @param {types.DeleteWalletParams} params
+   * @returns {Promise<ServiceMethodResponseDto<null>>}
+   */
+  async deleteWallet(params: types.DeleteWalletParams): Promise<ServiceMethodResponseDto<null>> {
+    const wallet: WalletModel = await this.walletRepo.findOne({ where: { id: params.id } });
+    const tokens: TokenModel[] = await this.tokenRepo.find({ where: { wallet_id: wallet.id } });
+    const secrets: SecretsModel = await this.secretsRepo.findOne({ where: { wallet_id: wallet.id } });
+
+    if (!wallet.can_deleted) {
+      this.logger("deleteWallet()").error("Wallet cannot be deleted");
+      return new ServiceMethodResponseDto<null>({ ok: false, status: HttpStatus.BAD_REQUEST, message: "Wallet cannot be deleted" });
+    }
+
+    for (const token of tokens) {
+      await this.tokenRepo.delete({ id: token.id });
+    }
+
+    await this.secretsRepo.delete({ id: secrets.id });
+    await this.walletRepo.delete({ id: wallet.id });
+
+    return new ServiceMethodResponseDto<null>({ ok: true, status: HttpStatus.OK, data: null });
+  }
+
+  /**
+   * @name getTokenInfo
+   * @desc Get token info
+   * @param {types.GetTokenInfoParams} params
+   * @returns {Promise<ServiceMethodResponseDto<types.GetTokenInfoResult>>}
+   */
+  async getTokenInfo(params: types.GetTokenInfoParams): Promise<ServiceMethodResponseDto<types.GetTokenInfoResult>> {
+    try {
+      const tokenInfo: sdkTypes.GetTokenInfoResult = await this.sdkService.getTokenInfo({ address: params.contract, network: params.network });
+      const tokenPrice: sdkTypes.GetTokenPriceResult = await this.sdkService.getTokenPrice({ address: params.contract });
+
+      return new ServiceMethodResponseDto<types.GetTokenInfoResult>({
+        ok: true,
+        data: {
+          network: params.network,
+          contract: params.contract,
+          ...tokenInfo,
+          ...tokenPrice,
+        },
+        status: HttpStatus.OK,
+      });
+    } catch (e) {
+      this.logger("getTokenInfo()").error(`Failed to get token info: ` + e.message);
+      return new ServiceMethodResponseDto<types.GetTokenInfoResult>({ ok: false, status: HttpStatus.NOT_FOUND });
+    }
+  }
+
+  /**
+   * @name getTokenPrice
+   * @desc Get token price
+   * @param {types.GetTokenPriceParams} params
+   * @returns {Promise<ServiceMethodResponseDto<types.GetTokenPriceResult>>}
+   */
+  async getTokenPrice(params: types.GetTokenPriceParams): Promise<ServiceMethodResponseDto<types.GetTokenPriceResult>> {
+    try {
+      const tokenPrice: sdkTypes.GetTokenPriceResult = await this.sdkService.getTokenPrice({ address: params.contract, symbol: params.symbol });
+      return new ServiceMethodResponseDto<types.GetTokenPriceResult>({ ok: true, data: tokenPrice, status: HttpStatus.OK });
+    } catch (e) {
+      this.logger("getTokenPrice()").error(`Failed to get token price: ` + e.message);
+      return new ServiceMethodResponseDto<types.GetTokenInfoResult>({ ok: false, status: HttpStatus.NOT_FOUND });
+    }
+  }
+
+  /**
+   * @name importWallet
+   * @desc Import existing wallet
+   * @param {types.ImportWalletParams} params
+   * @returns {Promise<ServiceMethodResponseDto<WalletModel>>}
+   */
+  async importWallet(params: types.ImportWalletParams): Promise<ServiceMethodResponseDto<WalletModel>> {
+    const wallet: sdkTypes.GetImportedWalletResult = await this.sdkService.getImportedWallet({
+      network: params.network,
+      private_key: params.private_key,
+    });
+
+    const genWallet: WalletModel = await this.walletRepo.save({
+      name: params.name ?? `Imported ${params.network} wallet`,
+      user_id: params.user_id,
+      network: params.network,
+      type: WalletType.IMPORTED,
+      address: wallet.address,
+      is_generated: false,
+      is_imported: true,
+      created_at: moment().format(DB_DATE_FORMAT),
+      updated_at: moment().format(DB_DATE_FORMAT),
+    });
+
+    const genSecrets: SecretsModel = await this.secretsRepo.save({
+      ...wallet,
+      wallet_id: genWallet.id,
+      created_at: moment().format(DB_DATE_FORMAT),
+    });
+
+    const addTokenRes = await this.addWalletToken({
+      network: params.network,
+      wallet_id: genWallet.id,
+      wallet_address: genWallet.address,
+      contract: usdtContractByNetwork[params.network],
+    });
+
+    const addNativeTokenRes = await this.addNativeWalletToken({
+      network: params.network,
+      wallet_id: genWallet.id,
+      wallet_address: genWallet.address,
+    });
+
+    if (!addNativeTokenRes.ok || !addTokenRes.ok) {
+      await this.tokenRepo.delete({ wallet_id: genWallet.id });
+      await this.walletRepo.delete({ id: genWallet.id });
+      await this.secretsRepo.delete({ id: genSecrets.id });
+      this.logger("importWallet()").error("Failed to import wallet");
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to import wallet" });
+    }
+
+    if (!genSecrets || !genWallet) {
+      this.logger("importWallet()").error("Failed to import wallet");
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to import wallet" });
+    }
+
+    const walletTokens: TokenModel[] = await this.tokenRepo.find({ where: { wallet_id: genWallet.id } });
+    let walletBalanceUsd: number = 0;
+
+    for (const token of walletTokens) {
+      walletBalanceUsd += token.balance_usd;
+    }
+
+    await this.walletRepo.update({ id: genWallet.id }, { balance_usd: walletBalanceUsd });
+    const newWallet = await this.getWallet({ id: genWallet.id });
+
+    return new ServiceMethodResponseDto<WalletModel>({ ok: true, data: newWallet.data, status: HttpStatus.OK });
+  }
+
+  /**
+   * @name generateWallet
+   * @desc Generate new wallet
+   * @param {types.GenerateWalletParams} params
+   * @returns {Promise<ServiceMethodResponseDto<WalletModel>>}
+   */
+  async generateWallet(params: types.GenerateWalletParams): Promise<ServiceMethodResponseDto<WalletModel>> {
+    const wallet: sdkTypes.GenerateWalletResult = await this.sdkService.generateWallet({ network: params.network });
+
+    const genWallet: WalletModel = await this.walletRepo.save({
+      name: params.name ?? `${params.network} wallet`,
+      user_id: params.user_id,
+      network: params.network,
+      type: WalletType.GENERATED,
+      address: wallet.address,
+      is_generated: true,
+      is_imported: false,
+      created_at: moment().format(DB_DATE_FORMAT),
+      updated_at: moment().format(DB_DATE_FORMAT),
+      can_deleted: params.can_deleted,
+    });
+
+    const genSecrets: SecretsModel = await this.secretsRepo.save({
+      ...wallet,
+      wallet_id: genWallet.id,
+      created_at: moment().format(DB_DATE_FORMAT),
+    });
+
+    const addTokenRes = await this.addWalletToken({
+      network: params.network,
+      wallet_id: genWallet.id,
+      wallet_address: genWallet.address,
+      contract: usdtContractByNetwork[params.network],
+    });
+
+    const addNativeTokenRes = await this.addNativeWalletToken({
+      network: params.network,
+      wallet_id: genWallet.id,
+      wallet_address: genWallet.address,
+    });
+
+    if (!addNativeTokenRes.ok || !addTokenRes.ok) {
+      await this.tokenRepo.delete({ wallet_id: genWallet.id });
+      await this.walletRepo.delete({ id: genWallet.id });
+      await this.secretsRepo.delete({ id: genSecrets.id });
+      this.logger("generateWallet()").error("Failed to generate wallet");
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to generate wallet" });
+    }
+
+    if (!genSecrets || !genWallet) {
+      this.logger("generateWallet()").error("Failed to generate wallet");
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to generate wallet" });
+    }
+
+    const newWallet = await this.getWallet({ id: genWallet.id });
+    return new ServiceMethodResponseDto<WalletModel>({ ok: true, data: newWallet.data, status: HttpStatus.OK });
+  }
+
+  /**
+   * @name addWalletToken
+   * @desc Add fungible/erc20/jetton token into wallet
+   */
+  async addWalletToken(params: types.AddWalletTokenParams): Promise<ServiceMethodResponseDto<null>> {
+    try {
+      const isTokenAlreadyAdded: boolean = await this.tokenRepo.existsBy({
+        wallet_id: params.wallet_id,
+        network: params.network,
+        contract: params.contract,
+      });
+
+      if (isTokenAlreadyAdded) {
+        this.logger("addWalletToken()").error("Token already added");
+        return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.CONFLICT, message: "Token already added" });
+      }
+
+      const tokenInfo: sdkTypes.GetTokenInfoResult = await this.sdkService.getTokenInfo({
+        network: params.network,
+        address: params?.contract,
+      });
+
+      const tokenBalance: sdkTypes.GetWalletTokenBalanceResult = await this.sdkService.getWalletTokenBalance({
+        network: params.network,
+        address: params.wallet_address,
+        contract: params.contract,
+      });
+
+      const genToken: TokenModel = await this.tokenRepo.save({
+        wallet_id: params.wallet_id,
+        network: params.network,
+        symbol: tokenInfo.symbol,
+        name: tokenInfo.name,
+        contract: params.contract,
+        balance: tokenBalance.balance,
+        balance_usd: tokenBalance.balance_usd,
+        price: tokenBalance.price,
+        price_change_percentage: tokenBalance.price_change_percentage,
+        icon: tokenInfo.icon,
+        created_at: moment().format(DB_DATE_FORMAT),
+        updated_at: moment().format(DB_DATE_FORMAT),
+      });
+
+      if (!genToken) {
+        this.logger("addWalletToken()").error("Failed to add token into wallet");
+        return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet" });
+      }
+
+      return new ServiceMethodResponseDto({ ok: true, status: HttpStatus.OK });
+    } catch (e) {
+      this.logger("addWalletToken()").error("Failed to add token into wallet " + e.message);
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet " + e.message });
+    }
+  }
+
+  /**
+   * @name addNativeWalletToken
+   * @desc Add native token into wallet
+   * @param {types.AddWalletTokenParams} params
+   */
+  async addNativeWalletToken(params: types.AddNativeWalletTokenParams): Promise<ServiceMethodResponseDto<null>> {
+    try {
+      const tokenInfo: sdkTypes.GetTokenInfoResult = await this.sdkService.getTokenInfo({
+        network: params.network,
+        symbol: networkNativeSymbol[params.network],
+      });
+
+      const tokenBalance: sdkTypes.GetWalletBalanceResult = await this.sdkService.getWalletBalance({
+        network: params.network,
+        address: params.wallet_address,
+      });
+
+      const tokenPrice: sdkTypes.GetTokenPriceResult = await this.sdkService.getTokenPrice({
+        symbol: networkNativeSymbol[params.network],
+      });
+
+      const genToken: TokenModel = await this.tokenRepo.save({
+        wallet_id: params.wallet_id,
+        network: params.network,
+        symbol: tokenInfo.symbol,
+        name: tokenInfo.name,
+        balance: tokenBalance.balance,
+        balance_usd: tokenBalance.balance_usd,
+        price: tokenPrice.price,
+        price_change_percentage: tokenPrice.price_change_percentage,
+        icon: tokenInfo.icon,
+        created_at: moment().format(DB_DATE_FORMAT),
+        updated_at: moment().format(DB_DATE_FORMAT),
+      });
+
+      if (!genToken) {
+        this.logger("addNativeWalletToken()").error("Failed to add token into wallet");
+        return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet" });
+      }
+
+      return new ServiceMethodResponseDto({ ok: true, status: HttpStatus.OK });
+    } catch (e) {
+      this.logger("addNativeWalletToken()").error("Failed to add token into wallet " + e.message);
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet " + e.message });
+    }
+  }
+
+  /**
+   * @name generateWallets
+   * @desc Generate new wallets (inside system function, not allowed for controllers)
+   * @param {types.GenerateWalletsParams} params
+   * @returns {Promise<ServiceMethodResponseDto<WalletModel[]>>}
+   */
+  async generateWallets(params: types.GenerateWalletsParams): Promise<ServiceMethodResponseDto<WalletModel[]>> {
+    const wallets: WalletModel[] = [];
+
+    for (const network of params.networks) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const res = await this.generateWallet({ user_id: params.user_id, network, can_deleted: false });
+      res.ok && wallets.push(res.data);
+    }
+
+    if (wallets.length !== params.networks.length) {
+      for (const wallet of wallets) {
+        await this.tokenRepo.delete({ wallet_id: wallet.id });
+        await this.walletRepo.delete({ id: wallet.id });
+        await this.secretsRepo.delete({ wallet_id: wallet.id });
+      }
+
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR });
+    }
+
+    return new ServiceMethodResponseDto<WalletModel[]>({ ok: true, data: wallets, status: HttpStatus.OK });
+  }
+
+  /**
+   * @name updateWalletBalances
+   * @desc Cron work that will update wallet and wallet tokens balances
+   * @param {types.UpdateWalletBalancesParams} params
+   * @returns {Promise<ServiceMethodResponseDto<null>>}
+   */
+  async updateWalletBalances(params: types.UpdateWalletBalancesParams): Promise<ServiceMethodResponseDto<WalletModel>> {
+    let totalBalanceUsd: number = 0;
+    const tokens: TokenModel[] = await this.tokenRepo.find({ where: { wallet_id: params.wallet.id } });
+
+    // Update token balances
+    for (const token of tokens) {
+      const isNativeToken: boolean = networkNativeSymbol[token.network] === token.symbol;
+
+      switch (isNativeToken) {
+        case true:
+          const nativeTokenPrice: sdkTypes.GetTokenPriceResult = await this.sdkService.getTokenPrice({ symbol: token.symbol });
+          const nativeTokenBalance: sdkTypes.GetWalletBalanceResult = await this.sdkService.getWalletBalance({ network: token.network, address: params.wallet.address });
+          totalBalanceUsd += nativeTokenBalance.balance_usd;
+          await this.tokenRepo.update({ id: token.id }, { ...nativeTokenBalance, ...nativeTokenPrice, updated_at: moment().format(DB_DATE_FORMAT) });
+          break;
+        case false:
+          const tokenBalance: sdkTypes.GetWalletTokenBalanceResult = await this.sdkService.getWalletTokenBalance({ network: token.network, address: params.wallet.address, contract: token.contract });
+          totalBalanceUsd += tokenBalance.balance_usd;
+          await this.tokenRepo.update({ id: token.id }, { ...tokenBalance, updated_at: moment().format(DB_DATE_FORMAT) });
+          break;
+      }
+    }
+
+    // Update wallet balance
+    await this.walletRepo.update({ id: params.wallet.id }, { balance_usd: totalBalanceUsd, updated_at: moment().format(DB_DATE_FORMAT) });
+    const updatedWallet: WalletModel = await this.walletRepo.findOne({ where: { id: params.wallet.id } });
+
+    return new ServiceMethodResponseDto<WalletModel>({ ok: true, status: HttpStatus.OK, data: updatedWallet });
+  }
+
+  /**
+   * @name transferTransaction
+   * @desc Transfer transaction
+   * @param {types.TransferTransactionParams} params
+   * @returns {Promise<ServiceMethodResponseDto<TransactionModel>>}
+   */
+  async transferTransaction(params: types.TransferTransactionParams): Promise<ServiceMethodResponseDto<TransactionModel>> {
+    try {
+      const TO_ADDRESS: string = params?.to_address;
+      const WALLET_ID: string = params?.wallet_id;
+      const TOKEN_ID: string = params?.token_id;
+      const AMOUNT: number = params?.amount;
+
+      const walletData = await this.getWallet({ id: WALLET_ID });
+      const wallet: WalletModel | undefined = walletData.data;
+      const walletSecrets: SecretsModel = await this.secretsRepo.findOne({ where: { wallet_id: wallet.id } });
+      const tokenToTransfer: TokenModel | undefined = wallet?.tokens.find((token) => token.id === TOKEN_ID);
+      const isTokenNative: boolean = networkNativeSymbol[wallet?.network] === tokenToTransfer?.symbol;
+      const balanceIsValid: boolean = tokenToTransfer?.balance > AMOUNT;
+
+      if (!walletData.data || !walletSecrets) {
+        this.logger("transferTransaction()").error("Wallet not found");
+        return new ServiceMethodResponseDto({ ok: false, data: null, status: HttpStatus.NOT_FOUND, message: "Wallet not found" });
+      }
+
+      if (!tokenToTransfer) {
+        this.logger("transferTransaction()").error("Token not found");
+        return new ServiceMethodResponseDto({ ok: false, data: null, status: HttpStatus.NOT_FOUND, message: "Token not found" });
+      }
+
+      if (!balanceIsValid) {
+        this.logger("transferTransaction()").error("Insufficient balance");
+        return new ServiceMethodResponseDto({ ok: false, data: null, status: HttpStatus.BAD_REQUEST, message: "Insufficient balance" });
+      }
+
+      let transactionResult: sdkTypes.TransferWalletTokenTransactionResult | sdkTypes.TransferNativeWalletTokenTransactionResult;
+
+      switch (isTokenNative) {
+        case true:
+          transactionResult = await this.sdkService.transferNativeWalletTokenTransaction({
+            network: tokenToTransfer.network,
+            amount: AMOUNT.toString(),
+            to_address: TO_ADDRESS,
+            from_address: wallet.address,
+            from_private_key: tokenToTransfer.network === Network.TON ? walletSecrets.mnemonic : walletSecrets.private_key,
+          });
+          break;
+        case false:
+          transactionResult = await this.sdkService.transferWalletTokenTransaction({
+            network: tokenToTransfer.network,
+            amount: AMOUNT.toString(),
+            currency: tokenToTransfer.symbol,
+            to_address: TO_ADDRESS,
+            from_address: wallet.address,
+            from_private_key: tokenToTransfer.network === Network.TON ? walletSecrets.mnemonic : walletSecrets.private_key,
+            token_contract_address: tokenToTransfer.contract,
+          });
+          break;
+      }
+
+      const walletTransaction: TransactionModel = await this.transactionRepo.save({
+        wallet_id: WALLET_ID,
+        ...transactionResult,
+      });
+
+      return new ServiceMethodResponseDto<TransactionModel>({ ok: true, data: walletTransaction, status: HttpStatus.OK });
+    } catch (e) {
+      this.logger("transferTransaction()").error("Failed to transfer token: " + e.message);
+      return new ServiceMethodResponseDto({ ok: false, data: null, status: HttpStatus.INTERNAL_SERVER_ERROR, message: `Failed to transfer token: ${e.message}` });
+    }
+  }
+
+  /**
+   * @name getWalletTransactions
+   * @desc Get wallet transactions
+   * @param {types.GetWalletTransactionsParams} params
+   * @returns {Promise<ServiceMethodResponseDto<TransactionModel[]>>}
+   */
+  async getWalletTransactions(params: types.GetWalletTransactionsParams): Promise<ServiceMethodResponseDto<TransactionModel[]>> {
+    const walletData = await this.getWallet({ id: params.id });
+
+    if (!walletData.data) {
+      this.logger("getWalletTransactions()").error("Wallet not found");
+      return new ServiceMethodResponseDto({ ok: false, data: null, status: HttpStatus.NOT_FOUND, message: "Wallet not found" });
+    }
+
+    let transactions: TransactionModel[] = await this.transactionRepo.find({ where: { wallet_id: walletData.data.id } });
+
+    transactions = transactions.sort((a, b) => {
+      const createdAt: moment.Moment = moment(a.created_at);
+      const createdAtB: moment.Moment = moment(b.created_at);
+      if (createdAt.isBefore(createdAtB)) return 1;
+      if (createdAt.isAfter(createdAtB)) return -1;
+      return 0;
+    });
+
+    return new ServiceMethodResponseDto({ ok: true, data: transactions ?? [], status: HttpStatus.OK });
+  }
+}
