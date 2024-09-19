@@ -220,8 +220,9 @@ export class WalletsService {
    * @returns {Promise<ServiceMethodResponseDto<WalletModel>>}
    */
   async generateWallet(params: types.GenerateWalletParams): Promise<ServiceMethodResponseDto<WalletModel>> {
+    console.log('Generating wallet:', params);
     const wallet: sdkTypes.GenerateWalletResult = await this.sdkService.generateWallet({ network: params.network });
-
+    console.log('Generated wallet:', wallet);
     const genWallet: WalletModel = await this.walletRepo.save({
       name: params.name ?? `${params.network} wallet`,
       user_id: params.user_id,
@@ -247,12 +248,14 @@ export class WalletsService {
       wallet_address: genWallet.address,
       contract: usdtContractByNetwork[params.network],
     });
+    console.log('Add token result:', addTokenRes);
 
     const addNativeTokenRes = await this.addNativeWalletToken({
       network: params.network,
       wallet_id: genWallet.id,
       wallet_address: genWallet.address,
     });
+    console.log('Add native token result:', addNativeTokenRes);
 
     if (!addNativeTokenRes.ok || !addTokenRes.ok) {
       await this.tokenRepo.delete({ wallet_id: genWallet.id });
@@ -277,6 +280,7 @@ export class WalletsService {
    */
   async addWalletToken(params: types.AddWalletTokenParams): Promise<ServiceMethodResponseDto<null>> {
     try {
+      console.log('Adding wallet token:', params);
       const isTokenAlreadyAdded: boolean = await this.tokenRepo.existsBy({
         wallet_id: params.wallet_id,
         network: params.network,
@@ -292,12 +296,14 @@ export class WalletsService {
         network: params.network,
         address: params?.contract,
       });
+      console.log('Token info:', tokenInfo);
 
       const tokenBalance: sdkTypes.GetWalletTokenBalanceResult = await this.sdkService.getWalletTokenBalance({
         network: params.network,
         address: params.wallet_address,
         contract: params.contract,
       });
+      console.log('Token balance:', tokenBalance);
 
       const genToken: TokenModel = await this.tokenRepo.save({
         wallet_id: params.wallet_id,
@@ -321,6 +327,7 @@ export class WalletsService {
 
       return new ServiceMethodResponseDto({ ok: true, status: HttpStatus.OK });
     } catch (e) {
+      console.error('Error in addWalletToken:', e);
       this.logger("addWalletToken()").error("Failed to add token into wallet " + e.message);
       return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet " + e.message });
     }

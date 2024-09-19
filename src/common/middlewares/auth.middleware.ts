@@ -11,7 +11,9 @@ export class AuthMiddleware implements NestMiddleware {
   constructor(private readonly userService: UsersService) {}
 
   async use(req: Request & { user?: UserModel }, res: Response, next: NextFunction) {
+    console.log('AuthMiddleware: Headers:', req.headers);
     const cookie: CookieKeys = transformCookieToObject(req.headers.cookie);
+
 
     if (!cookie?.CSRF_TOKEN && req.query.telegram_id) {
       const csrfToken: string = uuidv4();
@@ -25,6 +27,7 @@ export class AuthMiddleware implements NestMiddleware {
     if (cookie?.CSRF_TOKEN) {
       req.user = await this.userService.findOne({ csrf_token: cookie.CSRF_TOKEN });
     }
+    console.log('AuthMiddleware: req.user:', req.user);
 
     next();
   }

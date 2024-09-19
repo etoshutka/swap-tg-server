@@ -172,8 +172,12 @@ export class SdkService {
           balance_usd = balance * price;
           return { balance, balance_usd };
         case Network.TON:
+          console.log('TON API URL:', this.configService.get("TON_API_API_URL"));
+          console.log('TON API Key:', this.configService.get("TON_API_API_KEY"));
           balance = (await this.tonSdk.accounts.getAccount(params.address))?.balance / 10 ** 9;
+          console.log('TON balance info:', balance);
           price = (await this.tonSdk.rates.getRates({ tokens: [networkNativeSymbol[params.network]], currencies: ["USD"] })).rates.TON.prices.USD;
+          console.log('TON price info:', price);
           balance_usd = balance * price;
           return { balance, balance_usd };
       }

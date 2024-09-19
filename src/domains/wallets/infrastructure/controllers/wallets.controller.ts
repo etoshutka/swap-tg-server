@@ -20,7 +20,9 @@ export class WalletsController {
   @UseGuards(AuthGuard)
   @Get("list")
   async getWallets(@Req() req: Request & { user: UserModel }) {
+    console.log('getWallets called, req.user:', req.user);
     const result = await this.walletsService.getWallets({ user_id: req.user.id });
+    console.log('Calling walletsService.getWallets with user_id:', req.user.id);
     if (!result.ok) throw new HttpException(result.message, result.status);
     return result;
   }
