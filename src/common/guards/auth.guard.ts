@@ -15,7 +15,7 @@ export class AuthGuard implements CanActivate {
     // if (!csrfTokenFromClient || csrfTokenFromCookie !== csrfTokenFromClient) {
     //   throw new ForbiddenException("Access denied");
     // }
-
+    
     return true;
   }
 }
