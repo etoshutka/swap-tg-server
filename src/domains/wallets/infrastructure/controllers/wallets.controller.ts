@@ -20,9 +20,6 @@ export class WalletsController {
   @UseGuards(AuthGuard)
   @Get("list")
   async getWallets(@Req() req: Request & { user: UserModel }) {
-    if (!req.user) {
-      throw new UnauthorizedException('User not authenticated');
-    }
     const result = await this.walletsService.getWallets({ user_id: req.user.id });
     if (!result.ok) throw new HttpException(result.message, result.status);
     return result;

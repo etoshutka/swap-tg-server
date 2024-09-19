@@ -50,7 +50,7 @@ export class SdkService {
     );
 
     this.tonSecondSdk = new TonClient({
-      apiKey: "3a4fb2a43724ee0bff04d00d0c71eafdffae82e587eec0ccf38327e927ce4a2b",
+      apiKey: "37ae71c9060112979bb9ae2409ec0fceab17adae1f248298691068dcc35e2b1c",
       endpoint: "https://toncenter.com/api/v2/jsonRPC",
     });
   }
