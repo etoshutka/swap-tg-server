@@ -15,29 +15,33 @@ export class AuthMiddleware implements NestMiddleware {
     const cookie: CookieKeys = transformCookieToObject(req.headers.cookie);
 
     try {
-      if (!cookie?.CSRF_TOKEN && req.query.telegram_id) {
-        const csrfToken: string = uuidv4();
-        res.cookie(COOKIE_KEYS.CSRF_TOKEN, csrfToken, COOKIE_CONFIG);
-        res.cookie(COOKIE_KEYS.CSRF_CLIENT_TOKEN, csrfToken);
-        const user = await this.userService.findOne({ telegram_id: req.query.telegram_id as string });
-        if (user) {
-          await this.userService.updateOne({ id: user.id, csrf_token: csrfToken });
-          req.user = user;
+      if (!cookie?.CSRF_TOKEN) {
+        if (req.query.telegram_id) {
+          const csrfToken: string = uuidv4();
+          res.cookie(COOKIE_KEYS.CSRF_TOKEN, csrfToken, COOKIE_CONFIG);
+          res.cookie(COOKIE_KEYS.CSRF_CLIENT_TOKEN, csrfToken);
+          const user = await this.userService.findOne({ telegram_id: req.query.telegram_id as string });
+          if (user) {
+            await this.userService.updateOne({ id: user.id, csrf_token: csrfToken });
+            req.user = user;
+          }
+        } else {
+          throw new UnauthorizedException('Отсутствует CSRF токен и telegram_id');
         }
-      } else if (cookie?.CSRF_TOKEN) {
+      } else {
         req.user = await this.userService.findOne({ csrf_token: cookie.CSRF_TOKEN });
       }
 
       console.log('AuthMiddleware: req.user:', req.user);
 
-      if (!req.user && req.path !== '/v1/auth/login') {
-        throw new UnauthorizedException('User not authenticated');
+      if (!req.user) {
+        throw new UnauthorizedException('Пользователь не аутентифицирован');
       }
 
       next();
     } catch (error) {
-      console.error('AuthMiddleware Error:', error);
-      res.status(401).json({ message: 'Unauthorized' });
+      console.error('Ошибка AuthMiddleware:', error);
+      res.status(401).json({ message: 'Неавторизованный доступ', details: error.message });
     }
   }
 }
