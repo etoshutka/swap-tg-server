@@ -2,7 +2,7 @@ import { Address, beginCell, Cell, internal, OpenedContract, SendMode, toNano, T
 import { networkNativeSymbol, networkSymbol } from "../../domain/consts/network.const";
 import { TransactionStatus, TransactionType } from "../../domain/interfaces/transaction.interface";
 import { Ethereum, Network as TatumNetwork, TatumSDK } from "@tatumio/tatum";
-import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "ton-crypto";
+import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "@ton/crypto";
 import { GetTokenPriceResult } from "../interfaces/cmc.interface";
 import { Network } from "../../domain/interfaces/wallet.interface";
 import { Api, HttpClient, JettonBalance } from "tonapi-sdk-js";
@@ -30,6 +30,8 @@ export class SdkService {
     private readonly cmcService: CmcService,
     private readonly configService: ConfigService,
   ) {
+    console.log('TATUM_MAINNET_API_KEY:', this.configService.get("TATUM_MAINNET_API_KEY"));
+    console.log('TON_API_API_KEY:', this.configService.get("TON_API_API_KEY"));
     this.ethSdk = TatumEthSDK({
       apiKey: this.configService.get("TATUM_MAINNET_API_KEY"),
     });
@@ -149,6 +151,7 @@ export class SdkService {
    */
   async getWalletBalance(params: types.GetWalletBalanceParams): Promise<types.GetWalletBalanceResult> {
     try {
+      console.log('Getting balance for:', params);
       const tatumSdk = params.network === Network.TON ? undefined : await TatumSDK.init<Ethereum>({ apiKey: this.configService.get("TATUM_MAINNET_API_KEY"), network: TatumNetwork.ETHEREUM });
 
       let price: number = 0;
@@ -175,6 +178,7 @@ export class SdkService {
           return { balance, balance_usd };
       }
     } catch (e) {
+      console.error('Error in getWalletBalance:', e);
       this.logger("getWalletBalance()").error(`Failed to get native ${networkNativeSymbol[params.network]} wallet balance: ` + e.message);
       throw e;
     }
