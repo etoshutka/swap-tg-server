@@ -12,6 +12,6 @@ import { forwardRef, Module } from "@nestjs/common";
   imports: [TypeOrmModule.forFeature([UserModel]), WalletsModule, forwardRef(() => ReferralModule)],
   providers: [UsersService, AuthService],
   controllers: [UsersController, AuthController],
-  exports: [UsersService, AuthService],
+  exports: [UsersService, AuthService, UsersModule],
 })
 export class UsersModule {}
