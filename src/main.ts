@@ -14,7 +14,9 @@ declare const module: any;
 
   // Allow to all and include localhost
   app.enableCors({
-    origin: true,
+    origin: 'https://etoshutka.github.io',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
     credentials: true,
   });
   
