@@ -153,11 +153,11 @@ export class SdkService {
     try {
       console.log('Getting balance for:', params);
       const tatumSdk = params.network === Network.TON ? undefined : await TatumSDK.init<Ethereum>({ apiKey: this.configService.get("TATUM_MAINNET_API_KEY"), network: TatumNetwork.ETHEREUM });
-
+  
       let price: number = 0;
       let balance: number = 0;
       let balance_usd: number = 0;
-
+  
       switch (params.network) {
         case Network.ETH:
         case Network.BSC:
@@ -174,7 +174,18 @@ export class SdkService {
         case Network.TON:
           console.log('TON API URL:', this.configService.get("TON_API_API_URL"));
           console.log('TON API Key:', this.configService.get("TON_API_API_KEY"));
-          balance = Number((await this.tonSdk.accounts.getAccount(Address.parse(params.address)))?.balance / BigInt(10 ** 9));
+          try {
+            const account = await this.tonSdk.accounts.getAccount(Address.parse(params.address));
+            if (account.status === 'uninit' || account.status === 'nonexist') {
+              return { balance: 0, balance_usd: 0 };
+            }
+            balance = Number(BigInt(account.balance) / BigInt(10 ** 9));
+          } catch (error) {
+            if (error.message.includes('404')) {
+              return { balance: 0, balance_usd: 0 };
+            }
+            throw error;
+          }
           console.log('TON balance info:', balance);
           price = (await this.tonSdk.rates.getRates({ tokens: [networkNativeSymbol[params.network]], currencies: ["USD"] })).rates.TON.prices.USD;
           console.log('USD price info:', price);
@@ -230,25 +241,30 @@ export class SdkService {
           price: sol20Price.price,
           price_change_percentage: sol20Price.price_change_percentage,
         };
-      case Network.TON:
-        const tonJettonPrice: GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: params.contract });
-        const tonJettonBalance: JettonBalance = await this.tonSdk.accounts.getAccountJettonBalance(Address.parse(params.address), Address.parse(params.contract), { currencies: ["USD"] });
-
-        if (!tonJettonBalance.balance) {
-          return {
-            balance: 0,
-            balance_usd: 0,
-            price: tonJettonPrice.price,
-            price_change_percentage: tonJettonPrice.price_change_percentage,
-          };
-        }
-
-        return {
-          balance: Number(tonJettonBalance.balance) / Math.pow(10, Number(tonJettonBalance.jetton.decimals)),
-          balance_usd: (Number(tonJettonBalance.balance) * tonJettonBalance.price.prices.USD) / Math.pow(10, Number(tonJettonBalance.jetton.decimals)),
-          price: tonJettonBalance.price.prices.USD,
-          price_change_percentage: Number(tonJettonBalance.price.diff24h.USD.replace("%", "")),
-        };
+        case Network.TON:
+          try {
+            const tonJettonPrice: GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: params.contract });
+            const tonJettonBalance: JettonBalance = await this.tonSdk.accounts.getAccountJettonBalance(Address.parse(params.address), Address.parse(params.contract), { currencies: ["USD"] });
+    
+            return {
+              balance: Number(tonJettonBalance.balance) / Math.pow(10, Number(tonJettonBalance.jetton.decimals)),
+              balance_usd: (Number(tonJettonBalance.balance) * tonJettonBalance.price.prices.USD) / Math.pow(10, Number(tonJettonBalance.jetton.decimals)),
+              price: tonJettonBalance.price.prices.USD,
+              price_change_percentage: Number(tonJettonBalance.price.diff24h.USD.replace("%", "")),
+            };
+          } catch (error) {
+            if (error.message.includes('404')) {
+              // Для неинициализированных TON кошельков возвращаем нулевой баланс
+              const tonJettonPrice: GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: params.contract });
+              return {
+                balance: 0,
+                balance_usd: 0,
+                price: tonJettonPrice.price,
+                price_change_percentage: tonJettonPrice.price_change_percentage,
+              };
+          }
+        throw error;
+      }
     }
   }
 

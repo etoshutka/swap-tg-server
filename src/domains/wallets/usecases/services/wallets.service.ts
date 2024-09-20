@@ -286,25 +286,40 @@ export class WalletsService {
         network: params.network,
         contract: params.contract,
       });
-
+  
       if (isTokenAlreadyAdded) {
         this.logger("addWalletToken()").error("Token already added");
         return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.CONFLICT, message: "Token already added" });
       }
-
+  
       const tokenInfo: sdkTypes.GetTokenInfoResult = await this.sdkService.getTokenInfo({
         network: params.network,
         address: params?.contract,
       });
       console.log('Token info:', tokenInfo);
-
-      const tokenBalance: sdkTypes.GetWalletTokenBalanceResult = await this.sdkService.getWalletTokenBalance({
-        network: params.network,
-        address: params.wallet_address,
-        contract: params.contract,
-      });
+  
+      let tokenBalance: sdkTypes.GetWalletTokenBalanceResult;
+      try {
+        tokenBalance = await this.sdkService.getWalletTokenBalance({
+          network: params.network,
+          address: params.wallet_address,
+          contract: params.contract,
+        });
+      } catch (error) {
+        if (params.network === Network.TON && error.message.includes('404')) {
+          // Для неинициализированных TON кошельков устанавливаем нулевой баланс
+          tokenBalance = {
+            balance: 0,
+            balance_usd: 0,
+            price: 0,
+            price_change_percentage: 0,
+          };
+        } else {
+          throw error;
+        }
+      }
       console.log('Token balance:', tokenBalance);
-
+  
       const genToken: TokenModel = await this.tokenRepo.save({
         wallet_id: params.wallet_id,
         network: params.network,
@@ -319,12 +334,12 @@ export class WalletsService {
         created_at: moment().format(DB_DATE_FORMAT),
         updated_at: moment().format(DB_DATE_FORMAT),
       });
-
+  
       if (!genToken) {
         this.logger("addWalletToken()").error("Failed to add token into wallet");
         return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet" });
       }
-
+  
       return new ServiceMethodResponseDto({ ok: true, status: HttpStatus.OK });
     } catch (e) {
       console.error('Error in addWalletToken:', e);
@@ -344,16 +359,29 @@ export class WalletsService {
         network: params.network,
         symbol: networkNativeSymbol[params.network],
       });
-
-      const tokenBalance: sdkTypes.GetWalletBalanceResult = await this.sdkService.getWalletBalance({
-        network: params.network,
-        address: params.wallet_address,
-      });
-
+  
+      let tokenBalance: sdkTypes.GetWalletBalanceResult;
+      try {
+        tokenBalance = await this.sdkService.getWalletBalance({
+          network: params.network,
+          address: params.wallet_address,
+        });
+      } catch (error) {
+        if (params.network === Network.TON && error.message.includes('404')) {
+          // Для неинициализированных TON кошельков устанавливаем нулевой баланс
+          tokenBalance = {
+            balance: 0,
+            balance_usd: 0,
+          };
+        } else {
+          throw error;
+        }
+      }
+  
       const tokenPrice: sdkTypes.GetTokenPriceResult = await this.sdkService.getTokenPrice({
         symbol: networkNativeSymbol[params.network],
       });
-
+  
       const genToken: TokenModel = await this.tokenRepo.save({
         wallet_id: params.wallet_id,
         network: params.network,
@@ -367,12 +395,12 @@ export class WalletsService {
         created_at: moment().format(DB_DATE_FORMAT),
         updated_at: moment().format(DB_DATE_FORMAT),
       });
-
+  
       if (!genToken) {
         this.logger("addNativeWalletToken()").error("Failed to add token into wallet");
         return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet" });
       }
-
+  
       return new ServiceMethodResponseDto({ ok: true, status: HttpStatus.OK });
     } catch (e) {
       this.logger("addNativeWalletToken()").error("Failed to add token into wallet " + e.message);
