@@ -7,10 +7,28 @@ import { WalletsModule } from "./domains/wallets/wallets.module";
 import { AppConfigModule } from "./config/app/config.module";
 import { UsersModule } from "./domains/users/users.module";
 import { ScheduleModule } from "@nestjs/schedule";
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
-  imports: [AppConfigModule, DatabaseModule, UsersModule, ScheduleModule.forRoot(), WalletsModule, ReferralModule, TelegramModule],
-  providers: [],
+  imports: [
+    AppConfigModule,
+    DatabaseModule,
+    UsersModule,
+    ScheduleModule.forRoot(),
+    WalletsModule,
+    ReferralModule,
+    TelegramModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+  providers: [AuthMiddleware],
   controllers: [],
 })
 export class AppModule implements NestModule {
