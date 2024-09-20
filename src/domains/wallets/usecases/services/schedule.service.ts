@@ -1,5 +1,5 @@
 import { TransactionStatus, TransactionType } from "../../domain/interfaces/transaction.interface";
-import { Api, HttpClient, Transaction, Transactions } from "tonapi-sdk-js";
+import { Api, TonApiClient, Transaction, Transactions } from "@ton-api/client";
 import { TransactionModel } from "../../domain/models/transaction.model";
 import { networkNativeSymbol } from "../../domain/consts/network.const";
 import { Network } from "../../domain/interfaces/wallet.interface";
@@ -14,7 +14,7 @@ import { TatumEthSDK } from "@tatumio/eth";
 import { TatumBscSDK } from "@tatumio/bsc";
 import { CmcService } from "./cmc.service";
 import { Repository } from "typeorm";
-import { TonClient } from "@ton/ton";
+import { Address, TonClient } from "@ton/ton";
 
 @Injectable()
 export class ScheduleService {
@@ -44,7 +44,7 @@ export class ScheduleService {
     });
 
     this.tonSdk = new Api(
-      new HttpClient({
+      new TonApiClient({
         baseUrl: this.configService.get("TON_API_API_URL"),
         baseApiParams: { headers: { Authorization: `Bearer ${this.configService.get("TON_API_API_KEY")}`, "Content-type": "application/json" } },
       }),
@@ -116,58 +116,74 @@ export class ScheduleService {
             );
             break;
           case Network.TON:
-            const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
-            const isJettonTransfer: boolean = t.hash.includes("jetton");
-            const transferId: string = isJettonTransfer ? t.hash.split(":")[0] : t.hash;
-
-            let isTonTransactionEnded: boolean = false;
-            let tonTransactionResult: Transaction;
-            const tonTransactionResults: Transaction[] = [];
-
-            if (!isJettonTransfer) {
-              while (!isTonTransactionEnded) {
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-                const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(t.from);
-                const transaction: Transaction = walletTransactions.transactions.find((tx) => tx.out_msgs?.[0]?.decoded_body?.text === transferId);
-
-                if (transaction) {
-                  tonTransactionResult = transaction;
-                  isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
-                }
-              }
-            } else {
-              while (!isTonTransactionEnded) {
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-                const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(t.from);
-                const transaction: Transaction = walletTransactions.transactions.find((t) => JSON.stringify(t).includes(String(transferId)));
-
-                if (transaction && tonTransactionResults.length < 2 && (transaction.success || transaction.destroyed || transaction.aborted)) {
-                  tonTransactionResults.push(transaction);
-                }
-
-                if (tonTransactionResults.length === 2) {
-                  isTonTransactionEnded = true;
-                }
+          const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
+          const isJettonTransfer: boolean = t.hash.includes("jetton");
+          const transferId: string = isJettonTransfer ? t.hash.split(":")[0] : t.hash;
+        
+          let isTonTransactionEnded: boolean = false;
+          let tonTransactionResult: Transaction | undefined;
+          const tonTransactionResults: Transaction[] = [];
+        
+          if (!isJettonTransfer) {
+            while (!isTonTransactionEnded) {
+              await new Promise((resolve) => setTimeout(resolve, 10000));
+              const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+              const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => tx.outMsgs?.[0]?.decodedBody?.text === transferId);
+        
+              if (transaction) {
+                tonTransactionResult = transaction;
+                isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
               }
             }
-
-            const txFee: number = isJettonTransfer
-              ? tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.total_fees), 0) / 1_000_000_000
-              : tonTransactionResult.total_fees / 1_000_000_000;
-            const txFeeUsd: number = txFee * tonPrice;
-
-            const txHash: string = isJettonTransfer ? tonTransactionResults[tonTransactionResults.length - 1].hash : tonTransactionResult.hash;
-
-            const txStatus: TransactionStatus = isJettonTransfer
-              ? tonTransactionResults[tonTransactionResults.length - 1].success
-                ? TransactionStatus.SUCCESS
-                : TransactionStatus.FAILED
-              : tonTransactionResult.success
-                ? TransactionStatus.SUCCESS
-                : TransactionStatus.FAILED;
-
-            await this.transactionRepo.update({ id: t.id }, { fee: txFee, hash: txHash, status: txStatus, fee_usd: txFeeUsd });
-            break;
+          } else {
+            while (!isTonTransactionEnded) {
+              await new Promise((resolve) => setTimeout(resolve, 10000));
+              const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+              const transaction: Transaction | undefined = walletTransactions.transactions.find((t) => JSON.stringify(t).includes(String(transferId)));
+        
+              if (transaction && tonTransactionResults.length < 2 && (transaction.success || transaction.destroyed || transaction.aborted)) {
+                tonTransactionResults.push(transaction);
+              }
+        
+              if (tonTransactionResults.length === 2) {
+                isTonTransactionEnded = true;
+              }
+            }
+          }
+        
+          let txFee: number;
+          if (isJettonTransfer) {
+            txFee = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
+          } else if (tonTransactionResult) {
+            txFee = Number(tonTransactionResult.totalFees) / 1e9;
+          } else {
+            throw new Error("Transaction result is undefined");
+          }
+        
+          const txFeeUsd: number = txFee * tonPrice;
+        
+          const txHash: string = isJettonTransfer 
+            ? tonTransactionResults[tonTransactionResults.length - 1].hash 
+            : tonTransactionResult?.hash || '';
+        
+          const txStatus: TransactionStatus = isJettonTransfer
+            ? tonTransactionResults[tonTransactionResults.length - 1].success
+              ? TransactionStatus.SUCCESS
+              : TransactionStatus.FAILED
+            : tonTransactionResult?.success
+              ? TransactionStatus.SUCCESS
+              : TransactionStatus.FAILED;
+        
+          await this.transactionRepo.update(
+            { id: t.id }, 
+            { 
+              fee: txFee, 
+              hash: txHash, 
+              status: txStatus, 
+              fee_usd: txFeeUsd 
+            }
+          );
+          break;
         }
       }
     } catch (e) {

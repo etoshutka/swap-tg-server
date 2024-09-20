@@ -3,7 +3,7 @@ import { Network } from "../../domain/interfaces/wallet.interface";
 import { TatumSolanaSDK } from "@tatumio/solana";
 import { TatumEthSDK } from "@tatumio/eth";
 import { TatumBscSDK } from "@tatumio/bsc";
-import { Api } from "tonapi-sdk-js";
+import { Api } from "@ton-api/client";
 
 export class GenerateWalletParams {
   network: Network;

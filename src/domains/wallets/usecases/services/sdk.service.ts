@@ -174,7 +174,7 @@ export class SdkService {
         case Network.TON:
           console.log('TON API URL:', this.configService.get("TON_API_API_URL"));
           console.log('TON API Key:', this.configService.get("TON_API_API_KEY"));
-          balance = (await this.tonSdk.accounts.getAccount(params.address))?.balance / 10 ** 9;
+          balance = Number((await this.tonSdk.accounts.getAccount(Address.parse(params.address)))?.balance / BigInt(10 ** 9));
           console.log('TON balance info:', balance);
           price = (await this.tonSdk.rates.getRates({ tokens: [networkNativeSymbol[params.network]], currencies: ["USD"] })).rates.TON.prices.USD;
           console.log('USD price info:', price);
@@ -232,7 +232,7 @@ export class SdkService {
         };
       case Network.TON:
         const tonJettonPrice: GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: params.contract });
-        const tonJettonBalance: JettonBalance = await this.tonSdk.accounts.getAccountJettonBalance(params.address, params.contract, { currencies: ["USD"] });
+        const tonJettonBalance: JettonBalance = await this.tonSdk.accounts.getAccountJettonBalance(Address.parse(params.address), Address.parse(params.contract), { currencies: ["USD"] });
 
         if (!tonJettonBalance.balance) {
           return {
@@ -339,7 +339,7 @@ export class SdkService {
 
           const jettonPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: TOKEN_CONTRACT_ADDRESS }).catch();
 
-          const jettonWalletAddressResult = await this.tonSdk.blockchain.execGetMethodForBlockchainAccount(TOKEN_CONTRACT_ADDRESS, "get_wallet_address", { args: [wallet.address.toRawString()] });
+          const jettonWalletAddressResult = await this.tonSdk.blockchain.execGetMethodForBlockchainAccount(Address.parse(TOKEN_CONTRACT_ADDRESS), "get_wallet_address", { args: [wallet.address.toRawString()] });
           const jettonWallet: Address = Address.parse(jettonWalletAddressResult.decoded?.jetton_wallet_address);
 
           const jettonTransferMessageBody: Cell = beginCell()
