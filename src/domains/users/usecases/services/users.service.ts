@@ -31,7 +31,11 @@ export class UsersService {
 
   async findOne(params: Partial<UserModel>): Promise<UserModel | null> {
     try {
+      console.log('Searching for user with params:', params);
+
       const user = await this.userRepo.findOneBy(params);
+      console.log('Found user:', user);
+
       if (user) {
         this.logger.log(`User found: ${user.id}`);
       } else {
