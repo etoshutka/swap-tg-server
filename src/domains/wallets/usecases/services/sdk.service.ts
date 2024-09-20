@@ -5,7 +5,7 @@ import { Ethereum, Network as TatumNetwork, TatumSDK } from "@tatumio/tatum";
 import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "@ton/crypto";
 import { GetTokenPriceResult } from "../interfaces/cmc.interface";
 import { Network } from "../../domain/interfaces/wallet.interface";
-import { Api, HttpClient, JettonBalance } from "tonapi-sdk-js";
+import { Api, TonApiClient, JettonBalance } from "@ton-api/client";
 import * as cmcTypes from "../interfaces/cmc.interface";
 import * as types from "../interfaces/sdk.interface";
 import { Injectable, Logger } from "@nestjs/common";
@@ -45,7 +45,7 @@ export class SdkService {
     });
 
     this.tonSdk = new Api(
-      new HttpClient({
+      new TonApiClient({
         baseUrl: this.configService.get("TON_API_API_URL"),
         baseApiParams: { headers: { Authorization: `Bearer ${this.configService.get("TON_API_API_KEY")}`, "Content-type": "application/json" } },
       }),
@@ -177,7 +177,7 @@ export class SdkService {
           balance = (await this.tonSdk.accounts.getAccount(params.address))?.balance / 10 ** 9;
           console.log('TON balance info:', balance);
           price = (await this.tonSdk.rates.getRates({ tokens: [networkNativeSymbol[params.network]], currencies: ["USD"] })).rates.TON.prices.USD;
-          console.log('TON price info:', price);
+          console.log('USD price info:', price);
           balance_usd = balance * price;
           return { balance, balance_usd };
       }
@@ -247,7 +247,7 @@ export class SdkService {
           balance: Number(tonJettonBalance.balance) / Math.pow(10, Number(tonJettonBalance.jetton.decimals)),
           balance_usd: (Number(tonJettonBalance.balance) * tonJettonBalance.price.prices.USD) / Math.pow(10, Number(tonJettonBalance.jetton.decimals)),
           price: tonJettonBalance.price.prices.USD,
-          price_change_percentage: Number(tonJettonBalance.price.diff_24h.USD.replace("%", "")),
+          price_change_percentage: Number(tonJettonBalance.price.diff24h.USD.replace("%", "")),
         };
     }
   }
