@@ -12,43 +12,23 @@ export class AuthMiddleware implements NestMiddleware {
 
   async use(req: Request & { user?: UserModel }, res: Response, next: NextFunction) {
     console.log('Raw request cookies:', req.headers.cookie);
-    const cookie: CookieKeys = transformCookieToObject(req.headers.cookie);
-    console.log('Parsed cookies:', cookie);
+    console.log('Raw headers:', req.headers);
+    
+    let telegramId = req.query.telegram_id as string;
+    if (!telegramId && req.headers['x-telegram-id']) {
+      telegramId = req.headers['x-telegram-id'] as string;
+    }
 
-    if (!cookie?.CSRF_TOKEN && req.query.telegram_id) {
-      console.log('No CSRF token, but telegram_id present. Creating new user session');
-      const csrfToken: string = uuidv4();
-      res.cookie(COOKIE_KEYS.CSRF_TOKEN, csrfToken, COOKIE_CONFIG);
-      res.cookie(COOKIE_KEYS.CSRF_CLIENT_TOKEN, csrfToken, { ...COOKIE_CONFIG, httpOnly: false });
-      res.cookie(COOKIE_KEYS.TELEGRAM_ID, req.query.telegram_id as string, COOKIE_CONFIG);
-      
+    if (telegramId) {
       try {
-        let user = await this.userService.findOne({ telegram_id: req.query.telegram_id as string });
+        let user = await this.userService.findOne({ telegram_id: telegramId });
         if (!user) {
-          user = await this.userService.create({
-            telegram_id: req.query.telegram_id as string,
-            csrf_token: csrfToken
-          });
-        } else {
-          await this.userService.updateOne({ id: user.id, csrf_token: csrfToken });
+          user = await this.userService.create({ telegram_id: telegramId });
         }
-        console.log('User created/updated:', user);
         req.user = user;
+        console.log('User set:', user);
       } catch (error) {
-        console.error('Error creating/updating user:', error);
-      }
-    } else if (cookie?.CSRF_TOKEN) {
-      console.log('CSRF token found, attempting to find user');
-      try {
-        const user = await this.userService.findOne({ csrf_token: cookie.CSRF_TOKEN });
-        console.log('User found by CSRF token:', user);
-        if (user) {
-          req.user = user;
-        } else {
-          console.log('No user found with CSRF token:', cookie.CSRF_TOKEN);
-        }
-      } catch (error) {
-        console.error('Error finding user by CSRF token:', error);
+        console.error('Error finding/creating user:', error);
       }
     }
 
