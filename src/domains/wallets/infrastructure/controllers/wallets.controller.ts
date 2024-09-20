@@ -4,9 +4,7 @@ import { WalletsService } from "../../usecases/services/wallets.service";
 import { AuthGuard } from "src/common/guards/auth.guard";
 import { UserModel } from "src/domains/users";
 import { Request } from "express";
-import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
 
-@UseGuards(JwtAuthGuard)
 @Controller("wallets")
 export class WalletsController {
   constructor(private readonly walletsService: WalletsService) {}
@@ -45,7 +43,7 @@ export class WalletsController {
     return result;
   }
 
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Get("token/price")
   async getTokenPrice(@Query() params: serviceTypes.GetTokenPriceParams) {
     const result = await this.walletsService.getTokenPrice(params);
@@ -53,7 +51,7 @@ export class WalletsController {
     return result;
   }
 
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Post("token/add")
   async getWalletToken(@Body() body: serviceTypes.AddWalletTokenParams) {
     const result = await this.walletsService.addWalletToken(body);
@@ -61,7 +59,7 @@ export class WalletsController {
     return result;
   }
 
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Post("create")
   async createWallet(@Body() body: serviceTypes.GenerateWalletParams, @Req() req: Request & { user: UserModel }) {
     const result = await this.walletsService.generateWallet({ ...body, user_id: req.user.id });
@@ -69,7 +67,7 @@ export class WalletsController {
     return result;
   }
 
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Post("import")
   async importWallet(@Body() body: serviceTypes.ImportWalletParams, @Req() req: Request & { user: UserModel }) {
     const result = await this.walletsService.importWallet({ ...body, user_id: req.user.id });
@@ -77,7 +75,7 @@ export class WalletsController {
     return result;
   }
 
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Delete("delete")
   async deleteWallet(@Body() body: serviceTypes.DeleteWalletParams) {
     const result = await this.walletsService.deleteWallet(body);
@@ -85,7 +83,7 @@ export class WalletsController {
     return result;
   }
 
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Post("transfer")
   async transferTransaction(@Body() body: serviceTypes.TransferTransactionParams) {
     const result = await this.walletsService.transferTransaction(body);
@@ -93,7 +91,7 @@ export class WalletsController {
     return result;
   }
 
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Get("transactions")
   async getWalletTransactions(@Query() query: serviceTypes.GetWalletTransactionsParams) {
     const result = await this.walletsService.getWalletTransactions(query);
