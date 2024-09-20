@@ -298,26 +298,11 @@ export class WalletsService {
       });
       console.log('Token info:', tokenInfo);
   
-      let tokenBalance: sdkTypes.GetWalletTokenBalanceResult;
-      try {
-        tokenBalance = await this.sdkService.getWalletTokenBalance({
-          network: params.network,
-          address: params.wallet_address,
-          contract: params.contract,
-        });
-      } catch (error) {
-        if (params.network === Network.TON && error.message.includes('404')) {
-          // Для неинициализированных TON кошельков устанавливаем нулевой баланс
-          tokenBalance = {
-            balance: 0,
-            balance_usd: 0,
-            price: 0,
-            price_change_percentage: 0,
-          };
-        } else {
-          throw error;
-        }
-      }
+      const tokenBalance: sdkTypes.GetWalletTokenBalanceResult = await this.sdkService.getWalletTokenBalance({
+        network: params.network,
+        address: params.wallet_address,
+        contract: params.contract,
+      });
       console.log('Token balance:', tokenBalance);
   
       const genToken: TokenModel = await this.tokenRepo.save({
@@ -347,12 +332,7 @@ export class WalletsService {
       return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet " + e.message });
     }
   }
-
-  /**
-   * @name addNativeWalletToken
-   * @desc Add native token into wallet
-   * @param {types.AddWalletTokenParams} params
-   */
+  
   async addNativeWalletToken(params: types.AddNativeWalletTokenParams): Promise<ServiceMethodResponseDto<null>> {
     try {
       const tokenInfo: sdkTypes.GetTokenInfoResult = await this.sdkService.getTokenInfo({
@@ -360,23 +340,10 @@ export class WalletsService {
         symbol: networkNativeSymbol[params.network],
       });
   
-      let tokenBalance: sdkTypes.GetWalletBalanceResult;
-      try {
-        tokenBalance = await this.sdkService.getWalletBalance({
-          network: params.network,
-          address: params.wallet_address,
-        });
-      } catch (error) {
-        if (params.network === Network.TON && error.message.includes('404')) {
-          // Для неинициализированных TON кошельков устанавливаем нулевой баланс
-          tokenBalance = {
-            balance: 0,
-            balance_usd: 0,
-          };
-        } else {
-          throw error;
-        }
-      }
+      const tokenBalance: sdkTypes.GetWalletBalanceResult = await this.sdkService.getWalletBalance({
+        network: params.network,
+        address: params.wallet_address,
+      });
   
       const tokenPrice: sdkTypes.GetTokenPriceResult = await this.sdkService.getTokenPrice({
         symbol: networkNativeSymbol[params.network],
