@@ -1,7 +1,9 @@
 import { CookieOptions } from "express";
 
 export const COOKIE_CONFIG: CookieOptions = {
-  // secure: true,
   httpOnly: true,
-  // sameSite: "strict",
+  secure: true, 
+  sameSite: 'lax',
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
+  path: '/',
 };
