@@ -9,10 +9,11 @@ import { WalletModel } from "./domain/models/wallet.model";
 import { TokenModel } from "./domain/models/token.model";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule } from "@nestjs/config";
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
+import { UsersModule } from "../users/users.module";
 
 @Module({
-  imports: [ConfigModule, TypeOrmModule.forFeature([WalletModel, TokenModel, SecretsModel, TransactionModel])],
+  imports: [ConfigModule, TypeOrmModule.forFeature([WalletModel, TokenModel, SecretsModel, TransactionModel]), forwardRef(()=>UsersModule)],
   providers: [WalletsService, SdkService, CmcService, ScheduleService],
   controllers: [WalletsController],
   exports: [WalletsService],
