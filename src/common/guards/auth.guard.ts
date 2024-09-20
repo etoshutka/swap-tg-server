@@ -6,8 +6,8 @@ import { Request } from "express";
 @Injectable()
 export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request: Request = context.switchToHttp().getRequest();
-    console.log('AuthGuard: Request user:', request);
+    // const request: Request = context.switchToHttp().getRequest();
+    // console.log('AuthGuard: Request user:', request);
     // const cookies: CookieKeys = transformCookieToObject(request.headers.cookie);
     //
     // const csrfTokenFromCookie: string = cookies?.CSRF_TOKEN;
