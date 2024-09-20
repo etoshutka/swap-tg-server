@@ -12,20 +12,34 @@ export class AuthMiddleware implements NestMiddleware {
 
   async use(req: Request & { user?: UserModel }, res: Response, next: NextFunction) {
     const cookie: CookieKeys = transformCookieToObject(req.headers.cookie);
+    console.log('Incoming request cookies:', cookie);
 
     if (!cookie?.CSRF_TOKEN && req.query.telegram_id) {
+      console.log('No CSRF token, creating new user session');
       const csrfToken: string = uuidv4();
       res.cookie(COOKIE_KEYS.CSRF_TOKEN, csrfToken, COOKIE_CONFIG);
       res.cookie(COOKIE_KEYS.CSRF_CLIENT_TOKEN, csrfToken);
-      const user = await this.userService.findOne({ telegram_id: req.query.telegram_id as string });
-      await this.userService.updateOne({ id: user.id, csrf_token: csrfToken });
-      req.user = user;
+      try {
+        const user = await this.userService.findOne({ telegram_id: req.query.telegram_id as string });
+        console.log('User found by telegram_id:', user);
+        await this.userService.updateOne({ id: user.id, csrf_token: csrfToken });
+        req.user = user;
+      } catch (error) {
+        console.error('Error finding or updating user:', error);
+      }
     }
 
     if (cookie?.CSRF_TOKEN) {
-      req.user = await this.userService.findOne({ csrf_token: cookie.CSRF_TOKEN });
+      console.log('CSRF token found, attempting to find user');
+      try {
+        req.user = await this.userService.findOne({ csrf_token: cookie.CSRF_TOKEN });
+        console.log('User found by CSRF token:', req.user);
+      } catch (error) {
+        console.error('Error finding user by CSRF token:', error);
+      }
     }
 
+    console.log('Final req.user:', req.user);
     next();
   }
 }
