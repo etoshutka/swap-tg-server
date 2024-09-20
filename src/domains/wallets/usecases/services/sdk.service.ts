@@ -32,6 +32,7 @@ export class SdkService {
   ) {
     console.log('TATUM_MAINNET_API_KEY:', this.configService.get("TATUM_MAINNET_API_KEY"));
     console.log('TON_API_API_KEY:', this.configService.get("TON_API_API_KEY"));
+    console.log('TON_API_API_URL:', this.configService.get("TON_API_API_URL"));
     this.ethSdk = TatumEthSDK({
       apiKey: this.configService.get("TATUM_MAINNET_API_KEY"),
     });

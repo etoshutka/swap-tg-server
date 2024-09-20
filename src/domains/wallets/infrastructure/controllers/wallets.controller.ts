@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpException, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import * as serviceTypes from "../../usecases/interfaces/wallets.interface";
 import { WalletsService } from "../../usecases/services/wallets.service";
 import { AuthGuard } from "src/common/guards/auth.guard";
@@ -19,10 +19,20 @@ export class WalletsController {
 
   @UseGuards(AuthGuard)
   @Get("list")
-  async getWallets(@Req() req: Request & { user: UserModel }) {
-    console.log(req.user);
+  async getWallets(@Req() req: Request & { user?: UserModel }) {
+    console.log('Request user in getWallets:', req.user);
+    
+    if (!req.user || !req.user.id) {
+      throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
+    }
+
     const result = await this.walletsService.getWallets({ user_id: req.user.id });
-    if (!result.ok) throw new HttpException(result.message, result.status);
+    
+    if (!result.ok) {
+      console.error('Error in getWallets:', result);
+      throw new HttpException(result.message || 'Internal server error', result.status || HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    
     return result;
   }
 
