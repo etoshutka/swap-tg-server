@@ -21,17 +21,16 @@ export class WalletsController {
   @Get("list")
   async getWallets(@Req() req: Request & { user?: UserModel }) {
     console.log('WalletsController: Request user:', req.user);
-    
     if (!req.user || !req.user.id) {
       throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
     }
 
     const result = await this.walletsService.getWallets({ user_id: req.user.id });
     
-    if (!result.ok) {
-      console.error('Error in getWallets:', result);
-      throw new HttpException(result.message || 'Internal server error', result.status || HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    // if (!result.ok) {
+    //   console.error('Error in getWallets:', result);
+    //   throw new HttpException(result.message || 'Internal server error', result.status || HttpStatus.INTERNAL_SERVER_ERROR);
+    // }
     
     return result;
   }

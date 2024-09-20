@@ -11,19 +11,19 @@ export class AuthMiddleware implements NestMiddleware {
   constructor(private readonly userService: UsersService) {}
 
   async use(req: Request & { user?: UserModel }, res: Response, next: NextFunction) {
-    console.log('Raw request cookies:', req.headers.cookie);
     console.log('Raw headers:', req.headers);
     
-    let telegramId = req.query.telegram_id as string;
-    if (!telegramId && req.headers['x-telegram-id']) {
-      telegramId = req.headers['x-telegram-id'] as string;
-    }
+    const telegramId = req.headers['x-telegram-id'] as string || req.query.telegram_id as string;
 
     if (telegramId) {
       try {
         let user = await this.userService.findOne({ telegram_id: telegramId });
         if (!user) {
-          user = await this.userService.create({ telegram_id: telegramId });
+          user = await this.userService.create({ 
+            telegram_id: telegramId,
+            username: req.query.username as string,
+            language_code: req.query.language_code as string
+          });
         }
         req.user = user;
         console.log('User set:', user);
