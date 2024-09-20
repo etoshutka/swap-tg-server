@@ -12,19 +12,18 @@ export class AuthMiddleware implements NestMiddleware {
 
   async use(req: Request & { user?: UserModel }, res: Response, next: NextFunction) {
     console.log('Raw request cookies:', req.headers.cookie);
-    const cookie: CookieKeys = transformCookieToObject(req.headers.cookie);
-    console.log('Parsed cookies:', cookie);
+    const cookies = req.cookies || {}; // Use req.cookies if available
+    console.log('Parsed cookies:', cookies);
 
-    if (cookie?.CSRF_TOKEN) {
+    if (cookies.CSRF_TOKEN) {
       console.log('CSRF token found, attempting to find user');
       try {
-        const user = await this.userService.findOne({ csrf_token: cookie.CSRF_TOKEN });
+        const user = await this.userService.findOne({ csrf_token: cookies.CSRF_TOKEN });
         console.log('User found by CSRF token:', user);
         if (user) {
           req.user = user;
         } else {
-          console.log('No user found with CSRF token:', cookie.CSRF_TOKEN);
-          // Здесь можно добавить логику для создания нового пользователя или обновления токена
+          console.log('No user found with CSRF token:', cookies.CSRF_TOKEN);
         }
       } catch (error) {
         console.error('Error finding user by CSRF token:', error);
