@@ -161,10 +161,17 @@ export class SdkService {
   
       switch (params.network) {
         case Network.ETH:
-        case Network.BSC:
-          // ... (оставьте существующий код для ETH и BSC)
-        case Network.SOL:
-          // ... (оставьте существующий код для SOL)
+          case Network.BSC:
+            const sdk: types.Sdk<Network.ETH | Network.BSC> = params.network === Network.ETH ? this.ethSdk : this.bscSdk;
+            balance = Number((await sdk.blockchain.getBlockchainAccountBalance(params.address)).balance);
+            price = Number((await tatumSdk.rates.getCurrentRate(networkNativeSymbol[params.network], "USD")).data.value);
+            balance_usd = balance * price;
+            return { balance, balance_usd };
+          case Network.SOL:
+            balance = Number((await this.solSdk.blockchain.getAccountBalance(params.address)).balance);
+            price = Number((await tatumSdk.rates.getCurrentRate(networkNativeSymbol[params.network], "USD")).data.value);
+            balance_usd = balance * price;
+            return { balance, balance_usd };
         case Network.TON:
           console.log('TON API URL:', this.configService.get("TON_API_API_URL"));
           console.log('TON API Key:', this.configService.get("TON_API_API_KEY"));
@@ -193,7 +200,7 @@ export class SdkService {
     } catch (e) {
       console.error('Error in getWalletBalance:', e);
       this.logger("getWalletBalance()").error(`Failed to get native ${networkNativeSymbol[params.network]} wallet balance: ` + e.message);
-      // В случае ошибки возвращаем нулевой баланс
+   
       return { balance: 0, balance_usd: 0 };
     }
   }
