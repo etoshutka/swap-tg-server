@@ -177,13 +177,12 @@ export class SdkService {
           console.log('TON API Key:', this.configService.get("TON_API_API_KEY"));
           try {
             const account = await this.tonSdk.accounts.getAccount(Address.parse(params.address));
-            if (account.status === 'uninit' || account.status === 'nonexist') {
-              return { balance: 0, balance_usd: 0 };
-            }
+            // if (account.status === 'uninit' || account.status === 'nonexist') {
+            //   return { balance: 0, balance_usd: 0 };
+            // }
             balance = Number(BigInt(account.balance) / BigInt(10 ** 9));
           } catch (error) {
             console.error('Error fetching TON account:', error);
-            // Если произошла ошибка, предполагаем, что кошелек не инициализирован
             return { balance: 0, balance_usd: 0 };
           }
           console.log('TON balance info:', balance);
