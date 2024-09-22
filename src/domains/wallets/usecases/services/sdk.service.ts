@@ -160,7 +160,7 @@ export class SdkService {
       let balance_usd: number = 0;
   
       switch (params.network) {
-        case Network.ETH:
+          case Network.ETH:
           case Network.BSC:
             const sdk: types.Sdk<Network.ETH | Network.BSC> = params.network === Network.ETH ? this.ethSdk : this.bscSdk;
             balance = Number((await sdk.blockchain.getBlockchainAccountBalance(params.address)).balance);
@@ -172,30 +172,34 @@ export class SdkService {
             price = Number((await tatumSdk.rates.getCurrentRate(networkNativeSymbol[params.network], "USD")).data.value);
             balance_usd = balance * price;
             return { balance, balance_usd };
-        case Network.TON:
-          console.log('TON API URL:', this.configService.get("TON_API_API_URL"));
-          console.log('TON API Key:', this.configService.get("TON_API_API_KEY"));
-          try {
-            const account = await this.tonSdk.accounts.getAccount(Address.parse(params.address));
-            // if (account.status === 'uninit' || account.status === 'nonexist') {
-            //   return { balance: 0, balance_usd: 0 };
-            // }
-            balance = Number(BigInt(account.balance) / BigInt(10 ** 9));
-          } catch (error) {
-            console.error('Error fetching TON account:', error);
-            return { balance: 0, balance_usd: 0 };
-          }
-          console.log('TON balance info:', balance);
-          try {
-            price = (await this.tonSdk.rates.getRates({ tokens: [networkNativeSymbol[params.network]], currencies: ["USD"] })).rates.TON.prices.USD;
-          } catch (error) {
-            console.error('Error fetching TON price:', error);
-            price = 0;
-          }
-          console.log('USD price info:', price);
-          balance_usd = balance * price;
-          return { balance, balance_usd };
-      }
+          case Network.TON:
+            console.log('Getting balance for:', params);
+            console.log('TON API URL:', this.configService.get("TON_API_API_URL"));
+            console.log('TON API Key:', this.configService.get("TON_API_API_KEY"));
+            try {
+              const address = Address.parse(params.address);
+              const balance = await this.tonSecondSdk.getBalance(address);
+              const balanceInTON = Number(balance) / 1e9; // Convert from nanoTON to TON
+              
+              // Получение цены TON
+              let price = 0;
+              try {
+                price = (await this.tonSdk.rates.getRates({ tokens: [networkNativeSymbol[params.network]], currencies: ["USD"] })).rates.TON.prices.USD;
+              } catch (error) {
+                console.error('Error fetching TON price:', error);
+              }
+              
+              const balance_usd = balanceInTON * price;
+              
+              console.log('TON balance info:', balanceInTON);
+              console.log('USD price info:', price);
+              
+              return { balance: balanceInTON, balance_usd };
+            } catch (error) {
+              console.error('Error fetching TON account:', error);
+              return { balance: 0, balance_usd: 0 };
+            }
+        }
     } catch (e) {
       console.error('Error in getWalletBalance:', e);
       this.logger("getWalletBalance()").error(`Failed to get native ${networkNativeSymbol[params.network]} wallet balance: ` + e.message);
