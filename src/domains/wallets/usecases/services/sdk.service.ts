@@ -179,9 +179,7 @@ export class SdkService {
             try {
               const address = Address.parse(params.address);
               const balance = await this.tonSecondSdk.getBalance(address);
-              const balanceInTON = Number(balance) / 1e9; // Convert from nanoTON to TON
-              
-              // Получение цены TON
+              const balanceInTON = Number(balance) / 1e9; 
               let price = 0;
               try {
                 price = (await this.tonSdk.rates.getRates({ tokens: [networkNativeSymbol[params.network]], currencies: ["USD"] })).rates.TON.prices.USD;
@@ -251,26 +249,42 @@ export class SdkService {
           price_change_percentage: sol20Price.price_change_percentage,
         };
         case Network.TON:
-      try {
-        const tonJettonPrice: GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: params.contract });
-        const tonJettonBalance: JettonBalance = await this.tonSdk.accounts.getAccountJettonBalance(Address.parse(params.address), Address.parse(params.contract), { currencies: ["USD"] });
-
-        return {
-          balance: Number(tonJettonBalance.balance) / Math.pow(10, Number(tonJettonBalance.jetton.decimals)),
-          balance_usd: (Number(tonJettonBalance.balance) * tonJettonBalance.price.prices.USD) / Math.pow(10, Number(tonJettonBalance.jetton.decimals)),
-          price: tonJettonBalance.price.prices.USD,
-          price_change_percentage: Number(tonJettonBalance.price.diff24h.USD.replace("%", "")),
-        };
-      } catch (error) {
-        console.error('Error fetching TON token balance:', error);
-        // В случае любой ошибки возвращаем нулевой баланс
-        const tonJettonPrice: GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: params.contract }).catch(() => ({ price: 0, price_change_percentage: 0 }));
-        return {
-          balance: 0,
-          balance_usd: 0,
-          price: tonJettonPrice.price,
-          price_change_percentage: tonJettonPrice.price_change_percentage,
-        };
+          try {
+            const address = Address.parse(params.address);
+            const contractAddress = Address.parse(params.contract);
+            
+            const jettonWalletAddress = await this.tonSecondSdk.runMethod(
+              contractAddress,
+              'get_wallet_address',
+              [{ type: 'slice', cell: beginCell().storeAddress(address).endCell() }]
+            );
+            
+            // Получаем баланс Jetton
+            const jettonBalance = await this.tonSecondSdk.runMethod(
+              Address.parse(jettonWalletAddress.stack[0].cell),
+              'get_wallet_data'
+            );
+            
+            const balance = Number(jettonBalance.stack[0]) / 1e9; 
+            
+          
+            const tokenPrice = await this.cmcService.getTokenPrice({ address: params.contract });
+            
+            return {
+              balance: balance,
+              balance_usd: balance * tokenPrice.price,
+              price: tokenPrice.price,
+              price_change_percentage: tokenPrice.price_change_percentage,
+            };
+          } catch (error) {
+            console.error('Error fetching TON token balance:', error);
+            const tokenPrice = await this.cmcService.getTokenPrice({ address: params.contract }).catch(() => ({ price: 0, price_change_percentage: 0 }));
+            return {
+              balance: 0,
+              balance_usd: 0,
+              price: tokenPrice.price,
+              price_change_percentage: tokenPrice.price_change_percentage,
+            };
       }
     }
   }
