@@ -255,15 +255,25 @@ export class SdkService {
             const tonJettonPrice: GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: params.contract });
             console.log('Fetched token price:', tonJettonPrice);
     
-            const tonJettonBalance: JettonBalance = await this.tonSdk.accounts.getAccountJettonBalance(
-              Address.parse(params.address), 
-              Address.parse(params.contract), 
-              { currencies: ["USD"] }
+            // Получаем адрес Jetton кошелька
+            const jettonWalletAddress = await this.tonSecondSdk.runMethod(
+              Address.parse(params.contract),
+              'get_wallet_address',
+              [{ type: 'slice', cell: beginCell().storeAddress(Address.parse(params.address)).endCell() }]
             );
-            console.log('Fetched jetton balance:', tonJettonBalance);
     
-            const balance = Number(tonJettonBalance.balance) / Math.pow(10, Number(tonJettonBalance.jetton.decimals));
+    
+    
+            // Получаем баланс Jetton
+            const jettonBalance = await this.tonSecondSdk.runMethod(
+              Address.parse(jettonWalletAddress.stack[0].cell),
+              'get_wallet_data'
+            );
+    
+            const balance = Number(jettonBalance.stack[0]) / 1e9; // Предполагаем, что decimals = 9
             const balance_usd = balance * tonJettonPrice.price;
+    
+            console.log('Fetched jetton balance:', balance);
     
             return {
               balance,
@@ -284,6 +294,7 @@ export class SdkService {
               price: tonJettonPrice.price,
               price_change_percentage: tonJettonPrice.price_change_percentage,
             };
+          
       }
     }
   }
