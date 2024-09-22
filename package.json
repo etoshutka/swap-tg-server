@@ -35,6 +35,7 @@
     "@tatumio/eth": "^2.2.86",
     "@tatumio/solana": "^2.2.84",
     "@tatumio/tatum": "^4.2.39",
+    "@telegram-apps/init-data-node": "^1.0.4",
     "@ton-api/client": "^0.1.1",
     "@ton-api/ton-adapter": "^0.1.0",
     "@ton/core": "^0.57.0",

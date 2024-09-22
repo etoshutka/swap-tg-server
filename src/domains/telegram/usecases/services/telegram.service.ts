@@ -46,7 +46,18 @@ export class TelegramService {
         const m1: TelegramApi.Message = await bot.sendMessage(chat_id, "Hello 👋, please, wait a few moments, app is initializing...");
 
         // Create new user
-        await this.authService.signUp({ telegram_id, username: msg.from.username, language_code: msg.from.language_code });
+        const authResult = await this.authService.getAuthResult({ 
+          id: telegram_id, 
+          username: msg.from.username, 
+          first_name: msg.from.first_name,
+          last_name: msg.from.last_name,
+          language_code: msg.from.language_code 
+        });
+
+        if (!authResult.ok) {
+          await bot.editMessageText("Sorry, there was an error creating your account. Please try again later.", { chat_id, message_id: m1.message_id });
+          return;
+        }
 
         // Check ref link
         await bot.editMessageText("⏳ Check your referral link...", { chat_id, message_id: m1.message_id });

@@ -14,44 +14,98 @@ export class AuthService {
     private readonly referralService: ReferralService,
   ) {}
 
-  /**
-   * Sign up user
-   * @desc Create new user, wallets and check ref link
-   * @param {Partial<UserModel>} params
-   * @returns {Promise<UserModel | boolean>}
-   */
-  async signUp(params: types.SignUpParams): Promise<ServiceMethodResponseDto<types.SignUpResult>> {
-    const isUserExist: boolean = await this.userService.isUserExist({ telegram_id: params.telegram_id });
+  async validateUser(telegramData: types.TelegramUserData): Promise<ServiceMethodResponseDto<types.ValidateUserResult>> {
+    let user = await this.userService.findOne({ telegram_id: telegramData.id });
+    let isNewUser = false;
 
-    // Check if user exist
-    if (isUserExist) {
-      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.CONFLICT, data: null, message: "User already exist" });
+    if (!user) {
+      isNewUser = true;
+      user = await this.createUser(telegramData);
+    } else {
+      // Update user info if needed
+      await this.userService.updateOne({ 
+        id: user.id, 
+        username: telegramData.username,
+        first_name: telegramData.first_name,
+        last_name: telegramData.last_name,
+        language_code: telegramData.language_code
+      });
+      user = await this.userService.findOne({ id: user.id });
     }
 
-    // Create user
-    const createdUser: UserModel = await this.userService.create({ ...params });
+    if (!user) {
+      return new ServiceMethodResponseDto({
+        ok: false,
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: "Failed to create or update user",
+      });
+    }
 
-    // Generate wallets
+    return new ServiceMethodResponseDto({
+      ok: true,
+      status: HttpStatus.OK,
+      data: { user, isNewUser },
+    });
+  }
+
+  private async createUser(telegramData: types.TelegramUserData): Promise<UserModel | null> {
+    const createdUser = await this.userService.create({
+      telegram_id: telegramData.id,
+      username: telegramData.username,
+      first_name: telegramData.first_name,
+      last_name: telegramData.last_name,
+      language_code: telegramData.language_code,
+    });
+
+    if (!createdUser) {
+      return null;
+    }
+
     const createdWallets = await this.walletsService.generateWallets({
       user_id: createdUser.id,
       networks: [Network.ETH, Network.SOL, Network.TON, Network.BSC],
     });
 
-    // Check if process failed
-    if (!createdUser || !createdWallets.ok) {
+    if (!createdWallets.ok) {
       await this.userService.deleteOne(createdUser.id);
-      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, data: null, message: "Error creating user: " + createdWallets.message });
+      return null;
     }
 
-    // Init user referral program
     await this.referralService.initReferralUserProgram({ telegram_id: createdUser.telegram_id });
+
+    return createdUser;
+  }
+
+  async getAuthResult(telegramData: types.TelegramUserData): Promise<ServiceMethodResponseDto<types.AuthResult>> {
+    const validateResult = await this.validateUser(telegramData);
+
+    if (!validateResult.ok) {
+      return new ServiceMethodResponseDto({
+        ok: false,
+        status: validateResult.status,
+        message: validateResult.message,
+      });
+    }
+
+    const { user, isNewUser } = validateResult.data;
+
+    const walletsResult = await this.walletsService.getWallets({ user_id: user.id });
+
+    if (!walletsResult.ok) {
+      return new ServiceMethodResponseDto({
+        ok: false,
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: "Failed to retrieve user wallets",
+      });
+    }
 
     return new ServiceMethodResponseDto({
       ok: true,
       status: HttpStatus.OK,
       data: {
-        user: createdUser,
-        wallets: createdWallets.data,
+        user,
+        wallets: walletsResult.data,
+        isNewUser,
       },
     });
   }

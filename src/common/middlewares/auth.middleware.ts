@@ -1,38 +1,44 @@
-import { transformCookieToObject } from "../helpers/transformCookieToObject";
-import { COOKIE_KEYS, CookieKeys } from "../consts/cookie-keys.const";
-import { COOKIE_CONFIG } from "../consts/cookie-config.const";
-import { UserModel, UsersService } from "src/domains/users";
-import { Injectable, NestMiddleware } from "@nestjs/common";
-import { Request, Response, NextFunction } from "express";
-import { v4 as uuidv4 } from "uuid";
+import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import { Request, Response, NextFunction } from 'express';
+import { validate, parse, InitDataParsed } from '@telegram-apps/init-data-node';
+import { ConfigService } from '@nestjs/config';
+import { UsersService } from 'src/domains/users';
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
-  constructor(private readonly userService: UsersService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly usersService: UsersService
+  ) {}
 
-  async use(req: Request & { user?: UserModel }, res: Response, next: NextFunction) {
-    console.log('Raw headers:', req.headers);
-    
-    const telegramId = req.headers['x-telegram-id'] as string || req.query.telegram_id as string;
+  async use(req: Request & { user?: any }, res: Response, next: NextFunction) {
+    const [authType, authData = ''] = (req.header('authorization') || '').split(' ');
 
-    if (telegramId) {
-      try {
-        let user = await this.userService.findOne({ telegram_id: telegramId });
-        if (!user) {
-          user = await this.userService.create({ 
-            telegram_id: telegramId,
-            username: req.query.username as string,
-            language_code: req.query.language_code as string
-          });
-        }
-        req.user = user;
-        console.log('User set:', user);
-      } catch (error) {
-        console.error('Error finding/creating user:', error);
-      }
+    if (authType !== 'tma') {
+      throw new UnauthorizedException('Invalid authorization type');
     }
 
-    console.log('Final req.user:', req.user);
-    next();
+    try {
+      const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+      validate(authData, botToken, { expiresIn: 3600 });
+      const initData: InitDataParsed = parse(authData);
+
+      // Найти или создать пользователя на основе данных Telegram
+      let user = await this.usersService.findOne({ telegram_id: initData.user.id.toString() });
+      if (!user) {
+        user = await this.usersService.create({
+          telegram_id: initData.user.id.toString(),
+          username: initData.user.username,
+          first_name: initData.user.firstName,
+          last_name: initData.user.lastName,
+          language_code: initData.user.languageCode,
+        });
+      }
+
+      req.user = user;
+      next();
+    } catch (error) {
+      throw new UnauthorizedException('Invalid init data');
+    }
   }
 }
