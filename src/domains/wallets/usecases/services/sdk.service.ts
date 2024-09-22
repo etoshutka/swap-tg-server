@@ -45,12 +45,20 @@ export class SdkService {
       apiKey: this.configService.get("TATUM_MAINNET_API_KEY"),
     });
 
-    this.tonSdk = new Api(
-      new TonApiClient({
-        baseUrl: this.configService.get("TON_API_API_URL"),
-        baseApiParams: { headers: { Authorization: `Bearer ${this.configService.get("TON_API_API_KEY")}`, "Content-type": "application/json" } },
-      }),
-    );
+    // this.tonSdk = new Api(
+    //   new TonApiClient({
+    //     baseUrl: this.configService.get("TON_API_API_URL"),
+    //     baseApiParams: { headers: { Authorization: `Bearer ${this.configService.get("TON_API_API_KEY")}`, "Content-type": "application/json" } },
+    //   }),
+    // );
+
+      const http = new TonApiClient({
+        baseUrl: 'https://tonapi.io',
+        apiKey: this.configService.get("TON_API_API_KEY")
+    });
+
+    this.tonSdk = new Api(http)
+    
 
     this.tonSecondSdk = new TonClient({
       apiKey: "37ae71c9060112979bb9ae2409ec0fceab17adae1f248298691068dcc35e2b1c",
