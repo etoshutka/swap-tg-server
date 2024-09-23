@@ -119,6 +119,31 @@ export class TransferWalletTokenTransactionResult {
   fee_usd: number;
 }
 
+export class SwapTokensParams {
+  network: Network;
+  fromTokenAddress: string | undefined; // undefined for native token
+  toTokenAddress: string | undefined; // undefined for native token
+  amount: string;
+  fromAddress: string;
+  fromPrivateKey: string;
+}
+
+export class SwapTokensResult {
+  type: TransactionType;
+  network: Network;
+  status: TransactionStatus;
+  hash: string;
+  fromAmount: number;
+  fromAmount_usd: number;
+  toAmount: number;
+  toAmount_usd: number;
+  from: string;
+  fromCurrency: string;
+  toCurrency: string;
+  fee: number;
+  fee_usd: number;
+}
+
 export type Sdk<N> = N extends Network.ETH
   ? ReturnType<typeof TatumEthSDK>
   : N extends Network.BSC

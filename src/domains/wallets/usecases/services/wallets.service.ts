@@ -13,6 +13,7 @@ import * as sdkTypes from "../interfaces/sdk.interface";
 import { SdkService } from "./sdk.service";
 import { Repository } from "typeorm";
 import * as moment from "moment";
+import { TransactionStatus, TransactionType } from "../../domain/interfaces/transaction.interface";
 
 @Injectable()
 export class WalletsService {
@@ -537,4 +538,77 @@ export class WalletsService {
 
     return new ServiceMethodResponseDto({ ok: true, data: transactions ?? [], status: HttpStatus.OK });
   }
+
+
+  /**
+ * @name swapTokens
+ * @desc Swap tokens within a wallet
+ * @param {types.SwapTokensParams} params
+ * @returns {Promise<ServiceMethodResponseDto<TransactionModel>>}
+ */
+async swapTokens(params: types.SwapTokensParams): Promise<ServiceMethodResponseDto<TransactionModel>> {
+  try {
+    const { wallet_id, from_token_id, to_token_id, amount } = params;
+
+    // Get wallet and tokens information
+    const walletData = await this.getWallet({ id: wallet_id });
+    if (!walletData.ok || !walletData.data) {
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Wallet not found" });
+    }
+    const wallet: WalletModel = walletData.data;
+
+    const fromToken = wallet.tokens.find(token => token.id === from_token_id);
+    const toToken = wallet.tokens.find(token => token.id === to_token_id);
+
+    if (!fromToken || !toToken) {
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Token not found" });
+    }
+
+    if (fromToken.balance < amount) {
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.BAD_REQUEST, message: "Insufficient balance" });
+    }
+
+    // Get wallet secrets
+    const secrets = await this.secretsRepo.findOne({ where: { wallet_id: wallet.id } });
+    if (!secrets) {
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Wallet secrets not found" });
+    }
+
+    // Perform the swap
+    const swapResult = await this.sdkService.swapTokens({
+      network: wallet.network,
+      fromTokenAddress: fromToken.contract,
+      toTokenAddress: toToken.contract,
+      amount: amount.toString(),
+      fromAddress: wallet.address,
+      fromPrivateKey: wallet.network === Network.TON ? secrets.mnemonic : secrets.private_key,
+    });
+
+    // Save the transaction
+    const transaction = await this.transactionRepo.save({
+      wallet_id: wallet.id,
+      type: TransactionType.SWAP,
+      network: wallet.network,
+      status: TransactionStatus.PENDING,
+      hash: swapResult.hash,
+      amount: amount,
+      amount_usd: amount * fromToken.price,
+      from: wallet.address,
+      fromCurrency: fromToken.symbol,
+      toCurrency: toToken.symbol,
+      fee: swapResult.fee,
+      fee_usd: swapResult.fee_usd,
+      created_at: moment().format(DB_DATE_FORMAT),
+      updated_at: moment().format(DB_DATE_FORMAT),
+    });
+
+    // Update token balances
+    await this.updateWalletBalances({ wallet });
+
+    return new ServiceMethodResponseDto<TransactionModel>({ ok: true, data: transaction, status: HttpStatus.OK });
+  } catch (e) {
+    this.logger("swapTokens()").error(`Failed to swap tokens: ${e.message}`);
+    return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: `Failed to swap tokens: ${e.message}` });
+  }
+}
 }

@@ -1,4 +1,4 @@
-import { Address, beginCell, Cell, internal, OpenedContract, SendMode, toNano, TonClient, WalletContractV5R1 } from "@ton/ton";
+import { Address, beginCell, Cell, internal, OpenedContract, Sender, SenderArguments, SendMode, toNano, TonClient, WalletContractV5R1 } from "@ton/ton";
 import { networkNativeSymbol, networkSymbol } from "../../domain/consts/network.const";
 import { TransactionStatus, TransactionType } from "../../domain/interfaces/transaction.interface";
 import { Ethereum, Network as TatumNetwork, TatumSDK } from "@tatumio/tatum";
@@ -6,6 +6,7 @@ import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "@ton/crypto";
 import { GetTokenPriceResult } from "../interfaces/cmc.interface";
 import { Network } from "../../domain/interfaces/wallet.interface";
 import { Api, TonApiClient, JettonBalance } from "@ton-api/client";
+import { Asset, Factory, MAINNET_FACTORY_ADDR, PoolType, ReadinessStatus, VaultNative } from '@dedust/sdk';
 import * as cmcTypes from "../interfaces/cmc.interface";
 import * as types from "../interfaces/sdk.interface";
 import { Injectable, Logger } from "@nestjs/common";
@@ -52,9 +53,9 @@ export class SdkService {
     //   }),
     // );
 
-      const http = new TonApiClient({
-        baseUrl: 'https://tonapi.io',
-        apiKey: this.configService.get("TON_API_API_KEY")
+    const http = new TonApiClient({
+      baseUrl: 'https://tonapi.io',
+      apiKey: this.configService.get("TON_API_API_KEY")
     });
 
     this.tonSdk = new Api(http)
@@ -521,6 +522,109 @@ export class SdkService {
       }
     } catch (e) {
       this.logger("transferNativeWalletTokenTransaction()").error("Failed to transfer native token: " + e.message);
+      throw e;
+    }
+  }
+
+  /**
+   * @name swapTokens
+   * @desc Swap tokens across different networks
+   * @param {types.SwapTokensParams} params
+   * @returns {Promise<types.SwapTokensResult>}
+   */
+  async swapTokens(params: types.SwapTokensParams): Promise<types.SwapTokensResult> {
+    try {
+      const network = params?.network
+      const fromTokenAddress = params?.fromTokenAddress
+      const toTokenAddress = params?.toTokenAddress
+      const amount = params?.amount
+      const fromAddress = params?.fromAddress
+      const fromPrivateKey = params?.fromPrivateKey
+
+      switch (network) {
+        case Network.ETH:
+          // return this.swap0xTokens(params);
+        case Network.BSC:
+          // return this.swap0xTokens(params);
+        case Network.SOL:
+          // return this.swapSolTokens(params);
+        case Network.TON:
+          const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
+          const tonVault = this.tonSecondSdk.open(await factory.getNativeVault());
+  
+          const fromToken = fromTokenAddress ? Asset.jetton(Address.parse(fromTokenAddress)) : Asset.native();
+          const toToken = toTokenAddress ? Asset.jetton(Address.parse(toTokenAddress)) : Asset.native();
+  
+          const pool = this.tonSecondSdk.open(await factory.getPool(PoolType.VOLATILE, [fromToken, toToken]));
+  
+          if ((await pool.getReadinessStatus()) !== ReadinessStatus.READY) {
+            throw new Error(`Pool (${fromToken}, ${toToken}) does not exist.`);
+          }
+  
+          if ((await tonVault.getReadinessStatus()) !== ReadinessStatus.READY) {
+            throw new Error('Vault (TON) does not exist.');
+          }
+  
+          const amountIn = toNano(amount);
+  
+          // Create and sign the transaction
+          const pair: KeyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
+          const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
+          const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
+          const seqno: number = await contract.getSeqno();
+  
+          const transferId: string = uuid();
+  
+          // Create a Sender object
+          const sender: Sender = {
+            address: wallet.address,
+            send: async (args: SenderArguments) => {
+              await contract.sendTransfer({
+                seqno,
+                sendMode: SendMode.PAY_GAS_SEPARATELY,
+                secretKey: pair.secretKey,
+                messages: [
+                  internal({
+                    to: args.to,
+                    value: args.value,
+                    body: args.body,
+                    bounce: false
+                  })
+                ],
+              });
+            }
+          };
+  
+          // Use sendSwap method
+          await tonVault.sendSwap(sender, {
+            poolAddress: pool.address,
+            amount: amountIn,
+            gasAmount: toNano("0.25"),
+            queryId: BigInt(transferId)
+          });
+  
+          // Get token prices for USD conversion
+          const fromTokenPrice = await this.cmcService.getTokenPrice({ address: fromTokenAddress }).catch(() => ({ price: 0 }));
+          const toTokenPrice = await this.cmcService.getTokenPrice({ address: toTokenAddress }).catch(() => ({ price: 0 }));
+  
+          return {
+            type: TransactionType.SWAP,
+            network: Network.TON,
+            status: TransactionStatus.PENDING,
+            hash: transferId,
+            fromAmount: Number(amount),
+            fromAmount_usd: Number(amount) * fromTokenPrice.price,
+            toAmount: 0, // Actual amount received will be determined after the swap
+            toAmount_usd: 0,
+            from: fromAddress,
+            fromCurrency: fromTokenAddress ? fromTokenAddress : 'TON',
+            toCurrency: toTokenAddress ? toTokenAddress : 'TON',
+            fee: 0,
+            fee_usd: 0,
+          };
+      }
+    } catch (e) {
+      this.logger("swapTokens()").error(`Failed to swap tokens: ${e.message}`);
       throw e;
     }
   }

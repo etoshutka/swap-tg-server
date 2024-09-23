@@ -129,3 +129,21 @@ export class GetWalletTransactionsParams {
   @IsNotEmpty({ message: "Wallet id is required" })
   id: string;
 }
+
+export class SwapTokensParams {
+  @IsUUID("4", { message: "Invalid wallet id" })
+  @IsNotEmpty({ message: "Wallet id is required" })
+  wallet_id: string;
+
+  @IsUUID("4", { message: "Invalid from token id" })
+  @IsNotEmpty({ message: "From token id is required" })
+  from_token_id: string;
+
+  @IsUUID("4", { message: "Invalid to token id" })
+  @IsNotEmpty({ message: "To token id is required" })
+  to_token_id: string;
+
+  @IsNumber({ maxDecimalPlaces: 9 }, { message: "Amount must be a number" })
+  @IsNotEmpty({ message: "Amount is required" })
+  amount: number;
+}
