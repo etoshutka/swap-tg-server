@@ -47,8 +47,20 @@ export class TransactionModel implements TransactionInterface {
   @Column()
   from: string;
 
-  @Column()
-  currency: string;
+  @Column({ nullable: true })
+  fromCurrency?: string;
+
+  @Column({ nullable: true })
+  toCurrency?: string;
+
+  @Column({ type: "float", nullable: true })
+  toAmount?: number;
+
+  @Column({ type: "float", nullable: true })
+  toAmount_usd?: number;
+
+  @Column({nullable: true})
+  currency?: string;
 
   @Column({ type: "float", default: 0 })
   fee: number;
