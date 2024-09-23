@@ -600,7 +600,6 @@ export class SdkService {
             poolAddress: pool.address,
             amount: amountIn,
             gasAmount: toNano("0.25"),
-            queryId: BigInt(transferId)
           });
   
           // Get token prices for USD conversion
