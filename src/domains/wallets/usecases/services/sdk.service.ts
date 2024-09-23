@@ -6,7 +6,7 @@ import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "@ton/crypto";
 import { GetTokenPriceResult } from "../interfaces/cmc.interface";
 import { Network } from "../../domain/interfaces/wallet.interface";
 import { Api, TonApiClient, JettonBalance } from "@ton-api/client";
-import { Asset, Factory, JettonRoot, MAINNET_FACTORY_ADDR, PoolType, ReadinessStatus, VaultJetton, VaultNative } from '@dedust/sdk';
+import { Asset, Factory, JettonRoot, MAINNET_FACTORY_ADDR, PoolType, ReadinessStatus, VaultJetton, VaultNative, JettonWallet } from '@dedust/sdk';
 import * as cmcTypes from "../interfaces/cmc.interface";
 import * as types from "../interfaces/sdk.interface";
 import { Injectable, Logger } from "@nestjs/common";
@@ -549,13 +549,23 @@ export class SdkService {
         case Network.SOL:
           // return this.swapSolTokens(params);
         case Network.TON:
+          console.log('Swap Params:', JSON.stringify({
+            network,
+            fromTokenAddress,
+            toTokenAddress,
+            amount,
+            fromAddress,
+            fromPrivateKeyLength: fromPrivateKey ? fromPrivateKey.length : 'undefined'
+          }, null, 2));
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
           const tonVault = this.tonSecondSdk.open(await factory.getNativeVault());
   
           const fromToken = fromTokenAddress ? Asset.jetton(Address.parse(fromTokenAddress)) : Asset.native();
           const toToken = toTokenAddress ? Asset.jetton(Address.parse(toTokenAddress)) : Asset.native();
+          console.log('Tokens:', { fromToken: fromToken.toString(), toToken: toToken.toString() });
   
           const pool = this.tonSecondSdk.open(await factory.getPool(PoolType.VOLATILE, [fromToken, toToken]));
+          console.log('Pool opened:', pool.address.toString());
   
           if ((await pool.getReadinessStatus()) !== ReadinessStatus.READY) {
             throw new Error(`Pool (${fromToken}, ${toToken}) does not exist.`);
@@ -579,6 +589,7 @@ export class SdkService {
           const sender: Sender = {
             address: wallet.address,
             send: async (args: SenderArguments) => {
+              console.log('Sending transfer:', JSON.stringify(args, null, 2));
               await contract.sendTransfer({
                 seqno,
                 sendMode: SendMode.PAY_GAS_SEPARATELY,
@@ -598,6 +609,7 @@ export class SdkService {
           // Use sendSwap method
           if (fromToken === Asset.native()) {
             // Swapping TON to Jetton
+            console.log('Swapping TON to Jetton');
             await tonVault.sendSwap(sender, {
               poolAddress: pool.address,
               amount: amountIn,
@@ -606,9 +618,10 @@ export class SdkService {
           } else {
             // Swapping Jetton to TON or another Jetton
             const jettonVault = this.tonSecondSdk.open(await factory.getJettonVault(Address.parse(fromTokenAddress)));
+            console.log('Jetton Vault opened:', jettonVault.address.toString());
             const jettonRoot = this.tonSecondSdk.open(JettonRoot.createFromAddress(Address.parse(fromTokenAddress)));
             const jettonWallet = this.tonSecondSdk.open(await jettonRoot.getWallet(sender.address));
-        
+            console.log('Jetton Wallet opened:', jettonWallet.address.toString());
             await jettonWallet.sendTransfer(sender, toNano("0.3"), {
               amount: amountIn,
               destination: jettonVault.address,
