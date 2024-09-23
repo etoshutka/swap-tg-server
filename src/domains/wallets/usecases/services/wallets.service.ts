@@ -594,6 +594,7 @@ async swapTokens(params: types.SwapTokensParams): Promise<ServiceMethodResponseD
       amount: amount,
       amount_usd: amount * fromToken.price,
       from: wallet.address,
+      to: wallet.address,
       fromCurrency: fromToken.symbol,
       toCurrency: toToken.symbol,
       fee: swapResult.fee,

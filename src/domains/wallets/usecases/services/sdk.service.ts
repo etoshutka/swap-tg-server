@@ -6,7 +6,7 @@ import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "@ton/crypto";
 import { GetTokenPriceResult } from "../interfaces/cmc.interface";
 import { Network } from "../../domain/interfaces/wallet.interface";
 import { Api, TonApiClient, JettonBalance } from "@ton-api/client";
-import { Asset, Factory, MAINNET_FACTORY_ADDR, PoolType, ReadinessStatus, VaultNative } from '@dedust/sdk';
+import { Asset, Factory, JettonRoot, MAINNET_FACTORY_ADDR, PoolType, ReadinessStatus, VaultJetton, VaultNative } from '@dedust/sdk';
 import * as cmcTypes from "../interfaces/cmc.interface";
 import * as types from "../interfaces/sdk.interface";
 import { Injectable, Logger } from "@nestjs/common";
@@ -596,11 +596,28 @@ export class SdkService {
           };
   
           // Use sendSwap method
-          await tonVault.sendSwap(sender, {
-            poolAddress: pool.address,
-            amount: amountIn,
-            gasAmount: toNano("0.25"),
-          });
+          if (fromToken === Asset.native()) {
+            // Swapping TON to Jetton
+            await tonVault.sendSwap(sender, {
+              poolAddress: pool.address,
+              amount: amountIn,
+              gasAmount: toNano("0.25"),
+            });
+          } else {
+            // Swapping Jetton to TON or another Jetton
+            const jettonVault = this.tonSecondSdk.open(await factory.getJettonVault(Address.parse(fromTokenAddress)));
+            const jettonRoot = this.tonSecondSdk.open(JettonRoot.createFromAddress(Address.parse(fromTokenAddress)));
+            const jettonWallet = this.tonSecondSdk.open(await jettonRoot.getWallet(sender.address));
+        
+            await jettonWallet.sendTransfer(sender, toNano("0.3"), {
+              amount: amountIn,
+              destination: jettonVault.address,
+              responseAddress: sender.address,
+              forwardAmount: toNano("0.25"),
+              forwardPayload: VaultJetton.createSwapPayload({ poolAddress: pool.address }),
+            });
+          }
+        
   
           // Get token prices for USD conversion
           const fromTokenPrice = await this.cmcService.getTokenPrice({ address: fromTokenAddress }).catch(() => ({ price: 0 }));
