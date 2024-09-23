@@ -589,7 +589,6 @@ export class SdkService {
           const sender: Sender = {
             address: wallet.address,
             send: async (args: SenderArguments) => {
-              console.log('Sending transfer:', JSON.stringify(args, null, 2));
               await contract.sendTransfer({
                 seqno,
                 sendMode: SendMode.PAY_GAS_SEPARATELY,
