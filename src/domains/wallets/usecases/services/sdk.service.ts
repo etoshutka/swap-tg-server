@@ -647,10 +647,27 @@ export class SdkService {
             }
             return this.cmcService.getTokenPrice({ address }).catch(() => ({ price: 0 }));
           };
+
+          const safeGetTokenPrice = async (address: string | null, symbol: string): Promise<number> => {
+            try {
+              if (!address && symbol.toUpperCase() === 'TON') {
+                const price = await this.cmcService.getTokenPrice({ symbol: 'TON' });
+                return price.price;
+              }
+              if (address) {
+                const price = await this.cmcService.getTokenPrice({ address });
+                return price.price;
+              }
+              return 0;
+            } catch (error) {
+              console.warn(`Failed to get price for ${symbol || address}: ${error.message}`);
+              return 0;
+            }
+          };
   
-          const fromTokenPrice = await getTokenPrice(fromTokenAddress, fromToken.toString());
-          const toTokenPrice = await getTokenPrice(toTokenAddress, toToken.toString());
-  
+          const fromTokenPrice = await safeGetTokenPrice(fromTokenAddress, fromToken.toString());
+          const toTokenPrice = await safeGetTokenPrice(toTokenAddress, toToken.toString());
+      
           console.log('Token prices:', { fromTokenPrice, toTokenPrice });
   
           const result = {
@@ -659,7 +676,7 @@ export class SdkService {
             status: TransactionStatus.PENDING,
             hash: transferId,
             fromAmount: Number(amount),
-            fromAmount_usd: Number(amount) * fromTokenPrice.price,
+            fromAmount_usd: Number(amount) * fromTokenPrice,
             toAmount: 0, // Actual amount received will be determined after the swap
             toAmount_usd: 0,
             from: fromAddress,
