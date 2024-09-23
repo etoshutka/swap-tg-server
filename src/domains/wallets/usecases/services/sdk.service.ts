@@ -663,8 +663,10 @@ export class SdkService {
             toAmount: 0, // Actual amount received will be determined after the swap
             toAmount_usd: 0,
             from: fromAddress,
-            fromCurrency: fromTokenAddress ? fromToken.toString() : 'TON',
-            toCurrency: toTokenAddress ? toToken.toString() : 'TON',
+            to: fromAddress, // For swaps, 'to' is usually the same as 'from'
+            currency: fromTokenAddress ? fromToken.toString().replace('jetton:', '') : 'TON',
+            fromCurrency: fromTokenAddress ? fromToken.toString().replace('jetton:', '') : 'TON',
+            toCurrency: toTokenAddress ? toToken.toString().replace('jetton:', '') : 'TON',
             fee: 0,
             fee_usd: 0,
           };
