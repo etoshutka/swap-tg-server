@@ -614,7 +614,7 @@ export class SdkService {
           };
   
           // Use sendSwap method
-          if (fromToken === Asset.native()) {
+          if (fromToken.toString() === Asset.native().toString()) {
             console.log('Swapping TON to Jetton');
             await tonVault.sendSwap(sender, {
               poolAddress: pool.address,
