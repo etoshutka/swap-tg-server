@@ -534,31 +534,28 @@ export class SdkService {
    */
   async swapTokens(params: types.SwapTokensParams): Promise<types.SwapTokensResult> {
     try {
-      const network = params?.network
-      const fromTokenAddress = params?.fromTokenAddress
-      const toTokenAddress = params?.toTokenAddress
-      const amount = params?.amount
-      const fromAddress = params?.fromAddress
-      const fromPrivateKey = params?.fromPrivateKey
-
+      const { network, fromTokenAddress, toTokenAddress, amount, fromAddress, fromPrivateKey } = params;
+  
+      console.log('Swap Params:', JSON.stringify({
+        network,
+        fromTokenAddress,
+        toTokenAddress,
+        amount,
+        fromAddress,
+        fromPrivateKeyLength: fromPrivateKey ? fromPrivateKey.length : 'undefined'
+      }, null, 2));
+  
+      if (!fromPrivateKey) {
+        throw new Error('fromPrivateKey is null or undefined');
+      }
+  
       switch (network) {
-        case Network.ETH:
-          // return this.swap0xTokens(params);
-        case Network.BSC:
-          // return this.swap0xTokens(params);
-        case Network.SOL:
-          // return this.swapSolTokens(params);
         case Network.TON:
-          console.log('Swap Params:', JSON.stringify({
-            network,
-            fromTokenAddress,
-            toTokenAddress,
-            amount,
-            fromAddress,
-            fromPrivateKeyLength: fromPrivateKey ? fromPrivateKey.length : 'undefined'
-          }, null, 2));
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
+          console.log('Factory created');
+  
           const tonVault = this.tonSecondSdk.open(await factory.getNativeVault());
+          console.log('TON Vault opened');
   
           const fromToken = fromTokenAddress ? Asset.jetton(Address.parse(fromTokenAddress)) : Asset.native();
           const toToken = toTokenAddress ? Asset.jetton(Address.parse(toTokenAddress)) : Asset.native();
@@ -576,19 +573,47 @@ export class SdkService {
           }
   
           const amountIn = toNano(amount);
+          console.log('Amount in nano:', amountIn.toString());
   
           // Create and sign the transaction
-          const pair: KeyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
+          console.log('fromPrivateKey type:', typeof fromPrivateKey);
+          console.log('fromPrivateKey length:', fromPrivateKey.length);
+          
+          let privateKeyParts;
+          try {
+            privateKeyParts = fromPrivateKey.split(" ");
+            console.log('privateKeyParts length:', privateKeyParts.length);
+          } catch (e) {
+            console.error('Error splitting fromPrivateKey:', e);
+            throw new Error('Invalid fromPrivateKey format');
+          }
+  
+          let pair: KeyPair;
+          try {
+            pair = await mnemonicToPrivateKey(privateKeyParts);
+            console.log('Key pair created successfully');
+          } catch (e) {
+            console.error('Error in mnemonicToPrivateKey:', e);
+            throw new Error('Failed to create key pair from mnemonic');
+          }
+  
           const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
+          console.log('Wallet created:', wallet.address.toString());
+  
           const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
           const seqno: number = await contract.getSeqno();
+          console.log('Contract opened, seqno:', seqno);
   
           const transferId: string = uuid();
+          console.log('Transfer ID:', transferId);
   
           // Create a Sender object
           const sender: Sender = {
             address: wallet.address,
             send: async (args: SenderArguments) => {
+              console.log('Sending transfer:', JSON.stringify(args, (key, value) =>
+                typeof value === 'bigint' ? value.toString() : value
+              ));
               await contract.sendTransfer({
                 seqno,
                 sendMode: SendMode.PAY_GAS_SEPARATELY,
@@ -602,12 +627,12 @@ export class SdkService {
                   })
                 ],
               });
+              console.log('Transfer sent');
             }
           };
   
           // Use sendSwap method
           if (fromToken === Asset.native()) {
-            // Swapping TON to Jetton
             console.log('Swapping TON to Jetton');
             await tonVault.sendSwap(sender, {
               poolAddress: pool.address,
@@ -615,7 +640,7 @@ export class SdkService {
               gasAmount: toNano("0.25"),
             });
           } else {
-            // Swapping Jetton to TON or another Jetton
+            console.log('Swapping Jetton to TON or another Jetton');
             const jettonVault = this.tonSecondSdk.open(await factory.getJettonVault(Address.parse(fromTokenAddress)));
             console.log('Jetton Vault opened:', jettonVault.address.toString());
             const jettonRoot = this.tonSecondSdk.open(JettonRoot.createFromAddress(Address.parse(fromTokenAddress)));
@@ -629,13 +654,21 @@ export class SdkService {
               forwardPayload: VaultJetton.createSwapPayload({ poolAddress: pool.address }),
             });
           }
-        
   
           // Get token prices for USD conversion
-          const fromTokenPrice = await this.cmcService.getTokenPrice({ address: fromTokenAddress }).catch(() => ({ price: 0 }));
-          const toTokenPrice = await this.cmcService.getTokenPrice({ address: toTokenAddress }).catch(() => ({ price: 0 }));
+          const getTokenPrice = async (address: string | null, symbol: string) => {
+            if (address === null && symbol.toUpperCase() === 'TON') {
+              return this.cmcService.getTokenPrice({ symbol: 'TON' }).catch(() => ({ price: 0 }));
+            }
+            return this.cmcService.getTokenPrice({ address }).catch(() => ({ price: 0 }));
+          };
   
-          return {
+          const fromTokenPrice = await getTokenPrice(fromTokenAddress, fromToken.toString());
+          const toTokenPrice = await getTokenPrice(toTokenAddress, toToken.toString());
+  
+          console.log('Token prices:', { fromTokenPrice, toTokenPrice });
+  
+          const result = {
             type: TransactionType.SWAP,
             network: Network.TON,
             status: TransactionStatus.PENDING,
@@ -645,13 +678,20 @@ export class SdkService {
             toAmount: 0, // Actual amount received will be determined after the swap
             toAmount_usd: 0,
             from: fromAddress,
-            fromCurrency: fromTokenAddress ? fromTokenAddress : 'TON',
-            toCurrency: toTokenAddress ? toTokenAddress : 'TON',
+            fromCurrency: fromTokenAddress ? fromToken.toString() : 'TON',
+            toCurrency: toTokenAddress ? toToken.toString() : 'TON',
             fee: 0,
             fee_usd: 0,
           };
+  
+          console.log('Swap result:', JSON.stringify(result, null, 2));
+          return result;
+  
+        default:
+          throw new Error(`Unsupported network: ${network}`);
       }
     } catch (e) {
+      console.error('Error in swapTokens:', e);
       this.logger("swapTokens()").error(`Failed to swap tokens: ${e.message}`);
       throw e;
     }

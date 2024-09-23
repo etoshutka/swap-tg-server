@@ -27,7 +27,7 @@ export class TransactionInterface {
   amount_usd: number;
   to: string;
   from: string;
-  currency: string;
+  currency?: string | null;
   fee: number;
   fee_usd: number;
   updated_at: string;
