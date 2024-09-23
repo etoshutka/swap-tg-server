@@ -576,26 +576,8 @@ export class SdkService {
           console.log('Amount in nano:', amountIn.toString());
   
           // Create and sign the transaction
-          console.log('fromPrivateKey type:', typeof fromPrivateKey);
-          console.log('fromPrivateKey length:', fromPrivateKey.length);
-          
-          let privateKeyParts;
-          try {
-            privateKeyParts = fromPrivateKey.split(" ");
-            console.log('privateKeyParts length:', privateKeyParts.length);
-          } catch (e) {
-            console.error('Error splitting fromPrivateKey:', e);
-            throw new Error('Invalid fromPrivateKey format');
-          }
-  
-          let pair: KeyPair;
-          try {
-            pair = await mnemonicToPrivateKey(privateKeyParts);
-            console.log('Key pair created successfully');
-          } catch (e) {
-            console.error('Error in mnemonicToPrivateKey:', e);
-            throw new Error('Failed to create key pair from mnemonic');
-          }
+          const pair: KeyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
+          console.log('Key pair created successfully');
   
           const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
           console.log('Wallet created:', wallet.address.toString());
@@ -632,7 +614,7 @@ export class SdkService {
           };
   
           // Use sendSwap method
-          if (fromToken === null) {
+          if (fromToken === Asset.native()) {
             console.log('Swapping TON to Jetton');
             await tonVault.sendSwap(sender, {
               poolAddress: pool.address,
@@ -641,6 +623,9 @@ export class SdkService {
             });
           } else {
             console.log('Swapping Jetton to TON or another Jetton');
+            if (!fromTokenAddress) {
+              throw new Error('fromTokenAddress is required for Jetton swap');
+            }
             const jettonVault = this.tonSecondSdk.open(await factory.getJettonVault(Address.parse(fromTokenAddress)));
             console.log('Jetton Vault opened:', jettonVault.address.toString());
             const jettonRoot = this.tonSecondSdk.open(JettonRoot.createFromAddress(Address.parse(fromTokenAddress)));
