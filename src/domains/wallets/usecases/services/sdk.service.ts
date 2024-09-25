@@ -567,7 +567,7 @@ export class SdkService {
           const buyTokenAddress = toTokenAddress || nativeTokenAddress;
           
           // Log balance before swap
-          const balanceBefore = await sdk.blockchain.getBlockchainAccountBalance(fromAddress);
+          const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(params.fromAddress)).balance);
           console.log(`Balance before swap: ${balanceBefore}`);
   
           const sellAmount = (Number(amount) * 1e18).toString();
@@ -645,7 +645,7 @@ export class SdkService {
             data: quoteData.transaction.data,
             fromPrivateKey,
             fee: {
-              gasLimit: priceData.gasLimit,
+              gasLimit: priceData.gas,
               gasPrice: priceData.gasPrice,
             }
           });
@@ -653,7 +653,7 @@ export class SdkService {
           console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
   
           // Log balance after swap
-          const balanceAfter = await sdk.blockchain.getBlockchainAccountBalance(fromAddress);
+          const balanceAfter = Number((await sdk.blockchain.getBlockchainAccountBalance(params.fromAddress)).balance)
           console.log(`Balance after swap: ${balanceAfter}`);
 
           // Получение цен токенов для конвертации в USD
