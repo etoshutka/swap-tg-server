@@ -558,9 +558,11 @@ export class SdkService {
           const nativeSymbol = isEth ? 'ETH' : 'BNB';
           const chainId = isEth ? '1' : '56';
 
-          // Используем нативный символ вместо адреса обернутого токена
-          const sellTokenAddress = fromTokenAddress || nativeSymbol;
-          const buyTokenAddress = toTokenAddress || nativeSymbol;
+          const NATIVE_TOKEN_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+
+          // Используем специальный адрес для нативных токенов
+          const sellTokenAddress = fromTokenAddress || NATIVE_TOKEN_ADDRESS;
+          const buyTokenAddress = toTokenAddress || NATIVE_TOKEN_ADDRESS;;
 
           // Log balance before swap
           const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
