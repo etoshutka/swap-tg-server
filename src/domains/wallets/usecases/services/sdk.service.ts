@@ -665,10 +665,10 @@ export class SdkService {
             amount: quoteData.transaction.value,
             data: quoteData.transaction.data,
             fromPrivateKey,
-            // fee: {
-            //   gasLimit: gasLimit,
-            //   gasPrice: gasPrice,
-            // }
+            fee: {
+              gasLimit: gasLimit,
+              gasPrice: gasPrice,
+            }
           });
 
           console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
