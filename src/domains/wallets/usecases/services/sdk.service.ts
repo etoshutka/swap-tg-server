@@ -582,7 +582,7 @@ export class SdkService {
         });
         
 
-        const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${priceParams}`, {
+        const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/price?${priceParams}`, {
           method: 'GET',
           headers: { 
             '0x-api-key': this.configService.get("ZEROX_API_KEY"),
@@ -591,7 +591,7 @@ export class SdkService {
           }
         });
 
-        console.log('Quote Params:', priceParams.toString());
+        console.log('Price Params:', priceParams.toString());
 
         if (!priceResponse.ok) {
           const errorText = await priceResponse.text();
