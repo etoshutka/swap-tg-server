@@ -561,11 +561,46 @@ export class SdkService {
         const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
         const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
 
+        // const gasInfo: any = await sdk.blockchain.estimateGas({ to: TO_ADDRESS, from: fromAddress, amount: amount });
+        // const gasLimit: string = String(gasInfo.gasLimit);
+        // const gasPrice: string = Math.ceil(Number(isEth ? gasInfo.estimations.fast : gasInfo.gasPrice) / 1_000_000_000).toString();
+
         const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
 
         const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
         const buyTokenAddress = toTokenAddress || nativeTokenAddress;
-    
+        
+        const priceParams = new URLSearchParams({
+          chainId,
+          buyToken: buyTokenAddress,
+          sellToken: sellTokenAddress,
+          sellAmount: (Number(amount) * 1e18).toString(),
+          taker: fromAddress,
+          // takerAddress: fromAddress,
+          // slippagePercentage: '1', // 1% slippage
+          //skipValidation: 'true', // Опционально: пропустить некоторые проверки для ускорения
+        });
+        
+
+        const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${priceParams}`, {
+          method: 'GET',
+          headers: { 
+            '0x-api-key': this.configService.get("ZEROX_API_KEY"),
+            '0x-version': 'v2',
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log('Quote Params:', priceParams.toString());
+
+        if (!priceResponse.ok) {
+          const errorText = await priceResponse.text();
+          console.error('0x API Error:', errorText);
+          throw new Error(`HTTP error! status: ${priceResponse.status}`);
+        }
+
+        const priceData = await priceResponse.json();
+
 
     
         const quoteParams = new URLSearchParams({
@@ -605,10 +640,10 @@ export class SdkService {
             amount: quoteData.transaction.value,
             data: quoteData.transaction.data,
             fromPrivateKey,
-          //   fee: {
-          //     gasLimit: quoteData.transaction.gas,
-          //     gasPrice: quoteData.transaction.gasPrice
-          // }
+            fee: {
+              gasLimit: priceData.gasLimit,
+              gasPrice: priceData.gasPrice
+          }
         });
 
           // Получение цен токенов для конвертации в USD
