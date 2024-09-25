@@ -636,7 +636,8 @@ export class SdkService {
           console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
 
           const gasLimit = priceData.gas;
-          const gasPrice = Math.ceil(Number(priceData.gasPrice) / 1_000_000_000).toString();
+          // const gasPrice = Math.ceil(Number(priceData.gasPrice) / 1_000_000_000).toString();
+          const gasPrice = priceData.gasPrice;
           const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
 
           console.log(`Gas Limit: ${gasLimit}`);
@@ -705,8 +706,8 @@ export class SdkService {
             currency: fromTokenAddress || nativeSymbol,
             fromCurrency: fromTokenAddress || nativeSymbol,
             toCurrency: toTokenAddress || nativeSymbol,
-            fee: Number(totalGasCost) / 1e18,
-            fee_usd: (Number(totalGasCost) / 1e18) * fromTokenPriceInfo.price,
+            fee: 0,
+            fee_usd: 0,
           };
 
           return ethResult;
