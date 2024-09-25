@@ -575,50 +575,31 @@ export class SdkService {
           // Convert amount to wei (as a BigInt)
           const sellAmountWei = BigInt(Math.floor(Number(amount) * 1e18));
           console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
-      
-          const priceParams = new URLSearchParams({
-            chainId,
-            buyToken: buyTokenAddress,
-            sellToken: sellTokenAddress,
-            sellAmount: sellAmountWei.toString(),
-            taker: fromAddress,
-          });
-      
-          console.log('Price API Request URL:', `${zeroXApiUrl}/swap/permit2/price?${priceParams}`);
-      
-          const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/price?${priceParams}`, {
-            method: 'GET',
-            headers: { 
-              '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              '0x-version': 'v2',
-              'Accept': 'application/json'
-            }
-          });
-      
-          if (!priceResponse.ok) {
-            const errorText = await priceResponse.text();
-            console.error('0x API Price Error:', errorText);
-            throw new Error(`HTTP error! status: ${priceResponse.status}`);
-          }
-      
-          const priceData = await priceResponse.json();
-          console.log('Price Data:', JSON.stringify(priceData, null, 2));
+  
+          // Check and set allowance for ERC20 tokens
+          // if (fromTokenAddress && fromTokenAddress !== nativeTokenAddress) {
+          //   const allowance = await sdk.erc20.allowance(fromTokenAddress, fromAddress, '0xdef1c0ded9bec7f1a1670819833240f027b25eff');
+          //   if (BigInt(allowance) < sellAmountWei) {
+          //     console.log('Setting allowance for token swap');
+          //     await sdk.erc20.approve(fromTokenAddress, '0xdef1c0ded9bec7f1a1670819833240f027b25eff', sellAmountWei.toString(), fromPrivateKey);
+          //     console.log('Allowance set successfully');
+          //   }
+          // }
       
           const quoteParams = new URLSearchParams({
             chainId,
             buyToken: buyTokenAddress,
             sellToken: sellTokenAddress,
             sellAmount: sellAmountWei.toString(),
-            taker: fromAddress,
+            takerAddress: fromAddress,
           });
       
-          console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`);
+          console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/v1/quote?${quoteParams}`);
       
-          const response = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`, {
+          const response = await fetch(`${zeroXApiUrl}/swap/v1/quote?${quoteParams}`, {
             method: 'GET',
             headers: { 
               '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              '0x-version': 'v2',
               'Accept': 'application/json'
             }
           });
@@ -632,17 +613,17 @@ export class SdkService {
           const quoteData = await response.json();
           console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
       
-          const gasLimit = priceData.gas;
-          const gasPrice = Math.max(5, Math.ceil(Number(gasLimit) / 1_000_000_000)).toString();
-          const totalGasCost = gasLimit * Number(gasPrice);
+          const gasLimit = quoteData.gas;
+          const gasPrice = Math.ceil(Number(quoteData.gasPrice) / 1_000_000_000).toString();
+          const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
       
-          console.log(`Gas Limit: ${gasLimit.toString()}`);
-          console.log(`Gas Price: ${gasPrice.toString()} wei`);
+          console.log(`Gas Limit: ${gasLimit}`);
+          console.log(`Gas Price: ${gasPrice} wei`);
           console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
   
           console.log('Final transaction details:', {
-            to: quoteData.transaction.to,
-            value: quoteData.transaction.value,
+            to: quoteData.to,
+            value: quoteData.value,
             gasLimit: gasLimit.toString(),
             gasPrice: gasPrice.toString(),
             totalGasCost: totalGasCost.toString(),
@@ -652,9 +633,9 @@ export class SdkService {
       
           // Отправка транзакции свопа
           const txResult = await sdk.transaction.send.transferSignedTransaction({
-            to: quoteData.transaction.to,
-            amount: quoteData.transaction.value,
-            data: quoteData.transaction.data,
+            to: quoteData.to,
+            amount: quoteData.value,
+            data: quoteData.data,
             fromPrivateKey,
             fee: {
               gasLimit: gasLimit,
@@ -688,8 +669,8 @@ export class SdkService {
             currency: fromTokenAddress || nativeSymbol,
             fromCurrency: fromTokenAddress || nativeSymbol,
             toCurrency: toTokenAddress || nativeSymbol,
-            fee: Number(quoteData.totalNetworkFee) / 1e18,
-            fee_usd: (Number(quoteData.totalNetworkFee) / 1e18) * fromTokenPriceInfo.price,
+            fee: Number(totalGasCost) / 1e18,
+            fee_usd: (Number(totalGasCost) / 1e18) * fromTokenPriceInfo.price,
           };
       
           return ethResult;
