@@ -558,8 +558,8 @@ export class SdkService {
           const nativeSymbol = isEth ? 'ETH' : 'BNB';
           const chainId = isEth ? '1' : '56';
       
-          const WETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'//'0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
-          const WBNB_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'//'0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+          const WETH_ADDRESS ='0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+          const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
       
           const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
       
