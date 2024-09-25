@@ -633,8 +633,8 @@ export class SdkService {
           console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
       
           const gasLimit = priceData.gas;
-          const gasPrice = priceData.gasPrice;
-          const totalGasCost = gasLimit * gasPrice;
+          const gasPrice = Math.ceil(Number(gasLimit) / 1_000_000_000).toString();
+          const totalGasCost = gasLimit * Number(gasPrice);
       
           console.log(`Gas Limit: ${gasLimit.toString()}`);
           console.log(`Gas Price: ${gasPrice.toString()} wei`);
@@ -693,6 +693,7 @@ export class SdkService {
           };
       
           return ethResult;
+
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
           console.log('Factory created');
