@@ -553,7 +553,7 @@ export class SdkService {
         case Network.BSC:
         case Network.ETH:
         const isEth = network === Network.ETH;
-        const sdk = isEth ? this.ethSdk : this.bscSdk;
+        const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
         const zeroXApiUrl = 'https://api.0x.org' // isEth ? 'https://api.0x.org' : 'https://bsc.api.0x.org';
         const nativeSymbol = isEth ? 'ETH' : 'BNB';
         const chainId = isEth ? '1' : '56';
@@ -605,10 +605,10 @@ export class SdkService {
             amount: quoteData.transaction.value,
             data: quoteData.transaction.data,
             fromPrivateKey,
-            fee: {
-              gasLimit: quoteData.transaction.gas,
-              gasPrice: quoteData.transaction.gasPrice
-          }
+          //   fee: {
+          //     gasLimit: quoteData.transaction.gas,
+          //     gasPrice: quoteData.transaction.gasPrice
+          // }
         });
 
           // Получение цен токенов для конвертации в USD
