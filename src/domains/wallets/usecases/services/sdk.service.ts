@@ -644,7 +644,7 @@ export class SdkService {
           console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
 
           // Check if balance is sufficient for swap + gas
-          const totalRequired = BigInt(quoteData.value || 0) + totalGasCost;
+          const totalRequired = BigInt(quoteData.transaction.value || 0) + totalGasCost;
           if (balanceBeforeWei < totalRequired) {
             throw new Error(`Insufficient balance for swap and gas. Required: ${totalRequired}, Available: ${balanceBeforeWei}`);
           }
