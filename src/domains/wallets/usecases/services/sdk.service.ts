@@ -633,7 +633,7 @@ export class SdkService {
           console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
       
           const gasLimit = priceData.gas;
-          const gasPrice = Math.ceil(Number(gasLimit) / 1_000_000_000).toString();
+          const gasPrice = Math.max(5, Math.ceil(Number(gasLimit) / 1_000_000_000)).toString();
           const totalGasCost = gasLimit * Number(gasPrice);
       
           console.log(`Gas Limit: ${gasLimit.toString()}`);
