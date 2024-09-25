@@ -650,8 +650,8 @@ export class SdkService {
           }
 
           console.log('Final transaction details:', {
-            to: quoteData.to,
-            value: quoteData.value,
+            to: quoteData.transaction.to,
+            value: quoteData.transaction.value,
             gasLimit: gasLimit.toString(),
             gasPrice: gasPrice.toString(),
             totalGasCost: totalGasCost.toString(),
@@ -665,10 +665,10 @@ export class SdkService {
             amount: quoteData.transaction.value,
             data: quoteData.transaction.data,
             fromPrivateKey,
-            fee: {
-              gasLimit: gasLimit,
-              gasPrice: gasPrice,
-            }
+            // fee: {
+            //   gasLimit: gasLimit,
+            //   gasPrice: gasPrice,
+            // }
           });
 
           console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
