@@ -628,13 +628,25 @@ export class SdkService {
   
           const quoteData = await response.json();
           console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
-  
+
+          const gasLimit = BigInt(priceData.gas);
+          const gasPrice = BigInt(priceData.gasPrice);
+          const totalGasCost = gasLimit * gasPrice;
+
+          console.log(`Gas Limit: ${gasLimit}`);
+          console.log(`Gas Price: ${gasPrice}`);
+          console.log(`Total Gas Cost: ${totalGasCost} wei (${totalGasCost / BigInt(1e18)} BNB)`);
+
+          if (totalGasCost > BigInt(balanceBefore)) {
+            throw new Error(`Insufficient funds for gas. Need ${totalGasCost} wei, have ${balanceBefore} wei`);
+          }
+            
           // Log transaction details before sending
           console.log('Transaction details:', JSON.stringify({
             to: quoteData.transaction.to,
             value: quoteData.transaction.value,
             data: quoteData.transaction.data,
-            gasLimit: priceData.gasLimit,
+            gasLimit: priceData.gas,
             gasPrice: priceData.gasPrice,
           }, null, 2));
   
