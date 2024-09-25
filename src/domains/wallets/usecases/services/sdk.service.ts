@@ -572,7 +572,7 @@ export class SdkService {
           chainId,
           buyToken: buyTokenAddress,
           sellToken: sellTokenAddress,
-          sellAmount: (Number(amount) * 1e18).toString(), // Конвертируем в wei
+          sellAmount: (Number(amount)).toString(),
           taker: fromAddress,
           takerAddress: fromAddress,
           slippagePercentage: '1', // 1% slippage
