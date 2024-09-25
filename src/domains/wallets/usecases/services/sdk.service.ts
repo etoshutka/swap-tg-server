@@ -590,7 +590,7 @@ export class SdkService {
             method: 'GET',
             headers: { 
               '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              '0x-version': 'v2',
+              '0x-version': 'v1',
               'Accept': 'application/json'
             }
           });
@@ -618,7 +618,7 @@ export class SdkService {
             method: 'GET',
             headers: { 
               '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              '0x-version': 'v2',
+              '0x-version': 'v1',
               'Accept': 'application/json'
             }
           });
