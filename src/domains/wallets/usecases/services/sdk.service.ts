@@ -554,18 +554,19 @@ export class SdkService {
         case Network.ETH:
         const isEth = network === Network.ETH;
         const sdk = isEth ? this.ethSdk : this.bscSdk;
-        const zeroXApiUrl = 'https://api.0x.org';
+        const zeroXApiUrl = isEth ? 'https://api.0x.org' : 'https://bsc.api.0x.org';
         const nativeSymbol = isEth ? 'ETH' : 'BNB';
-
+        const chainId = isEth ? '1' : '56';
+    
         const quoteParams = new URLSearchParams({
-            chainId: isEth ? '1' : '56', // 1 для Ethereum, 56 для BSC
-            buyToken: toTokenAddress || nativeSymbol,
-            sellToken: fromTokenAddress || nativeSymbol,
-            sellAmount: amount,
-            taker: fromAddress,
-            txOrigin: fromAddress,
-            slippageBps: '100', // Допустимое проскальзывание 1%
+          chainId,
+          buyToken: toTokenAddress || nativeSymbol,
+          sellToken: fromTokenAddress || nativeSymbol,
+          sellAmount: (Number(amount) * 1e18).toString(), // Конвертируем в wei
+          takerAddress: fromAddress,
         });
+
+        console.log('Quote Params:', quoteParams.toString());
 
           // Запрос котировки у 0x API с использованием Permit2
         const response = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`, {
@@ -578,6 +579,8 @@ export class SdkService {
         });
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error('0x API Error:', errorText);
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
