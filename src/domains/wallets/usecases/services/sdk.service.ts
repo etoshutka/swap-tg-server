@@ -552,90 +552,94 @@ export class SdkService {
       switch (network) {
         case Network.BSC:
         case Network.ETH:
-        const isEth = network === Network.ETH;
-        const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
-        const zeroXApiUrl = 'https://api.0x.org' // isEth ? 'https://api.0x.org' : 'https://bsc.api.0x.org';
-        const nativeSymbol = isEth ? 'ETH' : 'BNB';
-        const chainId = isEth ? '1' : '56';
-
-        const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
-        const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
-
-        // const gasInfo: any = await sdk.blockchain.estimateGas({ to: TO_ADDRESS, from: fromAddress, amount: amount });
-        // const gasLimit: string = String(gasInfo.gasLimit);
-        // const gasPrice: string = Math.ceil(Number(isEth ? gasInfo.estimations.fast : gasInfo.gasPrice) / 1_000_000_000).toString();
-
-        const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
-
-        const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
-        const buyTokenAddress = toTokenAddress || nativeTokenAddress;
-        
-        const priceParams = new URLSearchParams({
-          chainId,
-          buyToken: buyTokenAddress,
-          sellToken: sellTokenAddress,
-          sellAmount: (Number(amount) * 1e18).toString(),
-          taker: fromAddress,
-          // takerAddress: fromAddress,
-          // slippagePercentage: '1', // 1% slippage
-          //skipValidation: 'true', // Опционально: пропустить некоторые проверки для ускорения
-        });
-        
-
-        const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/price?${priceParams}`, {
-          method: 'GET',
-          headers: { 
-            '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-            '0x-version': 'v2',
-            'Accept': 'application/json'
-          }
-        });
-
-        console.log('Price Params:', priceParams.toString());
-
-        if (!priceResponse.ok) {
-          const errorText = await priceResponse.text();
-          console.error('0x API Error:', errorText);
-          throw new Error(`HTTP error! status: ${priceResponse.status}`);
-        }
-
-        const priceData = await priceResponse.json();
-
-
-    
-        const quoteParams = new URLSearchParams({
-          chainId,
-          buyToken: buyTokenAddress,
-          sellToken: sellTokenAddress,
-          sellAmount: (Number(amount) * 1e18).toString(),
-          taker: fromAddress,
-          // takerAddress: fromAddress,
-          // slippagePercentage: '1', // 1% slippage
-          //skipValidation: 'true', // Опционально: пропустить некоторые проверки для ускорения
-        });
-
-        console.log('Quote Params:', quoteParams.toString());
-
-          // Запрос котировки у 0x API с использованием Permit2
-        const response = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`, {
+          const isEth = network === Network.ETH;
+          const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
+          const zeroXApiUrl = 'https://api.0x.org';
+          const nativeSymbol = isEth ? 'ETH' : 'BNB';
+          const chainId = isEth ? '1' : '56';
+  
+          const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+          const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+  
+          const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
+  
+          const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
+          const buyTokenAddress = toTokenAddress || nativeTokenAddress;
+          
+          // Log balance before swap
+          const balanceBefore = await sdk.blockchain.getBlockchainAccountBalance(fromAddress);
+          console.log(`Balance before swap: ${balanceBefore}`);
+  
+          const sellAmount = (Number(amount) * 1e18).toString();
+          console.log(`Calculated sell amount: ${sellAmount}`);
+  
+          const priceParams = new URLSearchParams({
+            chainId,
+            buyToken: buyTokenAddress,
+            sellToken: sellTokenAddress,
+            sellAmount: sellAmount,
+            taker: fromAddress,
+          });
+  
+          console.log('Price API Request URL:', `${zeroXApiUrl}/swap/permit2/price?${priceParams}`);
+  
+          const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/price?${priceParams}`, {
             method: 'GET',
             headers: { 
               '0x-api-key': this.configService.get("ZEROX_API_KEY"),
               '0x-version': 'v2',
               'Accept': 'application/json'
-           }
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('0x API Error:', errorText);
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const quoteData = await response.json();
-
+            }
+          });
+  
+          if (!priceResponse.ok) {
+            const errorText = await priceResponse.text();
+            console.error('0x API Price Error:', errorText);
+            throw new Error(`HTTP error! status: ${priceResponse.status}`);
+          }
+  
+          const priceData = await priceResponse.json();
+          console.log('Price Data:', JSON.stringify(priceData, null, 2));
+  
+          const quoteParams = new URLSearchParams({
+            chainId,
+            buyToken: buyTokenAddress,
+            sellToken: sellTokenAddress,
+            sellAmount: sellAmount,
+            taker: fromAddress,
+          });
+  
+          console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`);
+  
+          const response = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`, {
+            method: 'GET',
+            headers: { 
+              '0x-api-key': this.configService.get("ZEROX_API_KEY"),
+              '0x-version': 'v2',
+              'Accept': 'application/json'
+            }
+          });
+  
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('0x API Quote Error:', errorText);
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+  
+          const quoteData = await response.json();
+          console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
+  
+          // Log transaction details before sending
+          console.log('Transaction details:', JSON.stringify({
+            to: quoteData.transaction.to,
+            value: quoteData.transaction.value,
+            data: quoteData.transaction.data,
+            gasLimit: priceData.gasLimit,
+            gasPrice: priceData.gasPrice,
+          }, null, 2));
+  
           // Отправка транзакции свопа
-        const txResult = await sdk.transaction.send.transferSignedTransaction({
+          const txResult = await sdk.transaction.send.transferSignedTransaction({
             to: quoteData.transaction.to,
             amount: quoteData.transaction.value,
             data: quoteData.transaction.data,
@@ -643,8 +647,14 @@ export class SdkService {
             fee: {
               gasLimit: priceData.gasLimit,
               gasPrice: priceData.gasPrice,
-          }
-        });
+            }
+          });
+  
+          console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
+  
+          // Log balance after swap
+          const balanceAfter = await sdk.blockchain.getBlockchainAccountBalance(fromAddress);
+          console.log(`Balance after swap: ${balanceAfter}`);
 
           // Получение цен токенов для конвертации в USD
         const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
