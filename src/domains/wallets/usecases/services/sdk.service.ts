@@ -576,18 +576,17 @@ export class SdkService {
         const sellAmountWei = BigInt(Math.floor(Number(amount) * 1e18));
         console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
     
-        // Price request for gas estimation
         const priceParams = new URLSearchParams({
           chainId,
           buyToken: buyTokenAddress,
           sellToken: sellTokenAddress,
           sellAmount: sellAmountWei.toString(),
-          takerAddress: fromAddress,
+          taker: fromAddress,
         });
     
-        console.log('Price API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`);
+        console.log('Price API Request URL:', `${zeroXApiUrl}/swap/permit2/price?${priceParams}`);
     
-        const priceResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`, {
+        const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/price?${priceParams}`, {
           method: 'GET',
           headers: { 
             '0x-api-key': this.configService.get("ZEROX_API_KEY"),
@@ -605,18 +604,17 @@ export class SdkService {
         const priceData = await priceResponse.json();
         console.log('Price Data:', JSON.stringify(priceData, null, 2));
     
-        // Quote request
         const quoteParams = new URLSearchParams({
           chainId,
           buyToken: buyTokenAddress,
           sellToken: sellTokenAddress,
           sellAmount: sellAmountWei.toString(),
-          takerAddress: fromAddress,
+          taker: fromAddress,
         });
     
-        console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`);
+        console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`);
     
-        const quoteResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`, {
+        const response = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`, {
           method: 'GET',
           headers: { 
             '0x-api-key': this.configService.get("ZEROX_API_KEY"),
@@ -625,47 +623,45 @@ export class SdkService {
           }
         });
     
-        if (!quoteResponse.ok) {
-          const errorText = await quoteResponse.text();
+        if (!response.ok) {
+          const errorText = await response.text();
           console.error('0x API Quote Error:', errorText);
-          throw new Error(`HTTP error! status: ${quoteResponse.status}`);
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
     
-        const quoteData = await quoteResponse.json();
+        const quoteData = await response.json();
         console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
     
-        // Check if allowance is needed
-        if (quoteData.allowanceTarget && quoteData.allowanceTarget !== '0x0000000000000000000000000000000000000000') {
-          console.log('Allowance is needed. Setting allowance...');
-          const approveBody = {
-            chain: isEth ? 'ETH' : 'BSC',
-            amount: sellAmountWei.toString(),
+        // Check if approval is needed
+        if (quoteData.allowanceTarget && sellTokenAddress !== nativeTokenAddress) {
+          console.log('Approval is needed. Setting approval...');
+          const approveAmount = sellAmountWei.toString();
+          const approveTx = await sdk.erc20.send.approveSignedTransaction({
+            amount: approveAmount,
             spender: quoteData.allowanceTarget,
             contractAddress: sellTokenAddress,
-            fromPrivateKey: fromPrivateKey,
+            fromPrivateKey,
             fee: {
               gasLimit: priceData.gas,
               gasPrice: priceData.gasPrice,
             },
-          };
-          const allowanceTx = await sdk.erc20.send.approveSignedTransaction(approveBody);
-          console.log('Allowance set. Transaction:', allowanceTx);
+          });
+          console.log('Approval set. Transaction:', approveTx);
         }
     
         const gasLimit = priceData.gas;
-        const gasPrice = Math.ceil(Number(priceData.gasPrice) / 1_000_000_000).toString();
-        const totalGasCost = BigInt(gasLimit) * BigInt(priceData.gasPrice);
+        const gasPrice = Math.ceil(Number(gasLimit) / 1_000_000_000).toString();
+        const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
     
-        console.log(`Gas Limit: ${gasLimit}`);
-        console.log(`Gas Price: ${gasPrice} Gwei`);
+        console.log(`Gas Limit: ${gasLimit.toString()}`);
+        console.log(`Gas Price: ${gasPrice.toString()} wei`);
         console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
-
+  
         console.log('Final transaction details:', {
-          to: quoteData.to,
-          value: quoteData.value,
-          data: quoteData.data,
+          to: quoteData.transaction.to,
+          value: quoteData.transaction.value,
           gasLimit: gasLimit.toString(),
-          gasPrice: priceData.gasPrice,
+          gasPrice: gasPrice.toString(),
           totalGasCost: totalGasCost.toString(),
           swapAmount: sellAmountWei.toString(),
           balance: balanceBeforeWei.toString(),
@@ -673,13 +669,13 @@ export class SdkService {
     
         // Отправка транзакции свопа
         const txResult = await sdk.transaction.send.transferSignedTransaction({
-          to: quoteData.to,
-          amount: quoteData.value,
-          data: quoteData.data,
+          to: quoteData.transaction.to,
+          amount: quoteData.transaction.value,
+          data: quoteData.transaction.data,
           fromPrivateKey,
           fee: {
             gasLimit: gasLimit,
-            gasPrice: priceData.gasPrice,
+            gasPrice: gasPrice,
           }
         });
     
@@ -709,8 +705,8 @@ export class SdkService {
           currency: fromTokenAddress || nativeSymbol,
           fromCurrency: fromTokenAddress || nativeSymbol,
           toCurrency: toTokenAddress || nativeSymbol,
-          fee: Number(totalGasCost) / 1e18,
-          fee_usd: (Number(totalGasCost) / 1e18) * fromTokenPriceInfo.price,
+          fee: Number(quoteData.totalNetworkFee) / 1e18,
+          fee_usd: (Number(quoteData.totalNetworkFee) / 1e18) * fromTokenPriceInfo.price,
         };
     
         return ethResult;
