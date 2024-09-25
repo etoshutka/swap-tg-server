@@ -6,7 +6,7 @@ import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "@ton/crypto";
 import { GetTokenPriceResult } from "../interfaces/cmc.interface";
 import { Network } from "../../domain/interfaces/wallet.interface";
 import { Api, TonApiClient, JettonBalance } from "@ton-api/client";
-import { Asset, Factory, JettonRoot, MAINNET_FACTORY_ADDR, PoolType, ReadinessStatus, VaultJetton, VaultNative, JettonWallet } from '@dedust/sdk';
+import { Asset, Factory, JettonRoot, MAINNET_FACTORY_ADDR, PoolType, ReadinessStatus, VaultJetton} from '@dedust/sdk';
 import * as cmcTypes from "../interfaces/cmc.interface";
 import * as types from "../interfaces/sdk.interface";
 import { Injectable, Logger } from "@nestjs/common";
@@ -550,6 +550,77 @@ export class SdkService {
       }
   
       switch (network) {
+        case Network.BSC:
+        case Network.ETH:
+        const isEth = network === Network.ETH;
+        const sdk = isEth ? this.ethSdk : this.bscSdk;
+        const zeroXApiUrl = 'https://api.0x.org';
+        const nativeSymbol = isEth ? 'ETH' : 'BNB';
+
+        const quoteParams = new URLSearchParams({
+            chainId: isEth ? '1' : '56', // 1 для Ethereum, 56 для BSC
+            buyToken: toTokenAddress || nativeSymbol,
+            sellToken: fromTokenAddress || nativeSymbol,
+            sellAmount: amount,
+            taker: fromAddress,
+            txOrigin: fromAddress,
+            slippageBps: '100', // Допустимое проскальзывание 1%
+        });
+
+          // Запрос котировки у 0x API с использованием Permit2
+        const response = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`, {
+            method: 'GET',
+            headers: { 
+              '0x-api-key': this.configService.get("ZEROX_API_KEY"),
+              '0x-version': 'v2',
+              'Accept': 'application/json'
+           }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const quoteData = await response.json();
+
+          // Отправка транзакции свопа
+        const txResult = await sdk.transaction.send.transferSignedTransaction({
+            to: quoteData.transaction.to,
+            amount: quoteData.transaction.value,
+            data: quoteData.transaction.data,
+            fromPrivateKey,
+            fee: {
+              gasLimit: quoteData.transaction.gas,
+              gasPrice: quoteData.transaction.gasPrice
+          }
+        });
+
+          // Получение цен токенов для конвертации в USD
+        const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
+            this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : nativeSymbol }),
+            this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : nativeSymbol })
+        ]);
+
+        const ethResult = {
+            type: TransactionType.SWAP,
+            network,
+            status: TransactionStatus.PENDING,
+            hash: txResult.txId,
+            fromAmount: Number(quoteData.sellAmount),
+            fromAmount_usd: Number(quoteData.sellAmount) * fromTokenPriceInfo.price,
+            toAmount: Number(quoteData.buyAmount),
+            toAmount_usd: Number(quoteData.buyAmount) * toTokenPriceInfo.price,
+            from: fromAddress,
+            to: fromAddress,
+            currency: fromTokenAddress || nativeSymbol,
+            fromCurrency: fromTokenAddress || nativeSymbol,
+            toCurrency: toTokenAddress || nativeSymbol,
+            fee: Number(quoteData.totalNetworkFee) / 1e18,
+            fee_usd: (Number(quoteData.totalNetworkFee) / 1e18) * fromTokenPriceInfo.price,
+        };
+
+        return ethResult;
+
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
           console.log('Factory created');
@@ -640,14 +711,6 @@ export class SdkService {
             });
           }
   
-          // Get token prices for USD conversion
-          const getTokenPrice = async (address: string | null, symbol: string) => {
-            if (address === null && symbol.toUpperCase() === 'TON') {
-              return this.cmcService.getTokenPrice({ symbol: 'TON' }).catch(() => ({ price: 0 }));
-            }
-            return this.cmcService.getTokenPrice({ address }).catch(() => ({ price: 0 }));
-          };
-
           const safeGetTokenPrice = async (address: string | null, symbol: string): Promise<number> => {
             try {
               if (!address && symbol.toUpperCase() === 'TON') {
@@ -677,10 +740,10 @@ export class SdkService {
             hash: transferId,
             fromAmount: Number(amount),
             fromAmount_usd: Number(amount) * fromTokenPrice,
-            toAmount: 0, // Actual amount received will be determined after the swap
+            toAmount: 0,
             toAmount_usd: 0,
             from: fromAddress,
-            to: fromAddress, // For swaps, 'to' is usually the same as 'from'
+            to: fromAddress,
             currency: fromTokenAddress ? fromToken.toString().replace('jetton:', '') : 'TON',
             fromCurrency: fromTokenAddress ? fromToken.toString().replace('jetton:', '') : 'TON',
             toCurrency: toTokenAddress ? toToken.toString().replace('jetton:', '') : 'TON',
