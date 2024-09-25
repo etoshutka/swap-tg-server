@@ -642,7 +642,7 @@ export class SdkService {
             fromPrivateKey,
             fee: {
               gasLimit: priceData.gasLimit,
-              gasPrice: priceData.gasPrice
+              gasPrice: priceData.gasPrice,
           }
         });
 
