@@ -568,7 +568,13 @@ export class SdkService {
           
           // Log balance before swap
           const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(params.fromAddress)).balance);
+          const balanceBeforeWei = BigInt(balanceBefore);
           console.log(`Balance before swap: ${balanceBefore}`);
+          console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
+
+          const sellAmountWei = BigInt(amount) * BigInt(1e18);
+          console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
+
   
           const sellAmount = (Number(amount) * 1e18).toString();
           console.log(`Calculated sell amount: ${sellAmount}`);
@@ -633,23 +639,32 @@ export class SdkService {
           const gasPrice = BigInt(priceData.gasPrice);
           const totalGasCost = gasLimit * gasPrice;
 
-          console.log(`Gas Limit: ${gasLimit}`);
-          console.log(`Gas Price: ${gasPrice}`);
-          console.log(`Total Gas Cost: ${totalGasCost} wei (${totalGasCost / BigInt(1e18)} BNB)`);
+          console.log(`Gas Limit: ${gasLimit.toString()}`);
+          console.log(`Gas Price: ${gasPrice.toString()} wei`);
+          console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} BNB)`);
 
-          if (totalGasCost > BigInt(balanceBefore)) {
-            throw new Error(`Insufficient funds for gas. Need ${totalGasCost} wei, have ${balanceBefore} wei`);
+          if (totalGasCost > balanceBeforeWei) {
+            throw new Error(`Insufficient funds for gas. Need ${totalGasCost.toString()} wei, have ${balanceBeforeWei.toString()} wei`);
           }
-            
-          // Log transaction details before sending
-          console.log('Transaction details:', JSON.stringify({
+      
+          const totalRequired = totalGasCost + sellAmountWei;
+      
+          if (totalRequired > balanceBeforeWei) {
+            throw new Error(`Insufficient funds for swap and gas. Need ${totalRequired.toString()} wei, have ${balanceBeforeWei.toString()} wei`);
+          }
+
+          console.log('Final transaction details:', {
             to: quoteData.transaction.to,
             value: quoteData.transaction.value,
-            data: quoteData.transaction.data,
-            gasLimit: priceData.gas,
-            gasPrice: priceData.gasPrice,
-          }, null, 2));
-  
+            gasLimit: gasLimit.toString(),
+            gasPrice: gasPrice.toString(),
+            totalGasCost: totalGasCost.toString(),
+            swapAmount: sellAmountWei.toString(),
+            totalRequired: totalRequired.toString(),
+            balance: balanceBeforeWei.toString(),
+          });
+
+            
           // Отправка транзакции свопа
           const txResult = await sdk.transaction.send.transferSignedTransaction({
             to: quoteData.transaction.to,
@@ -657,8 +672,8 @@ export class SdkService {
             data: quoteData.transaction.data,
             fromPrivateKey,
             fee: {
-              gasLimit: priceData.gas,
-              gasPrice: priceData.gasPrice,
+              gasLimit: gasLimit.toString(),
+              gasPrice: gasPrice.toString(),
             }
           });
   
