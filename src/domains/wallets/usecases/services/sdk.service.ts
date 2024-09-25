@@ -572,7 +572,7 @@ export class SdkService {
           chainId,
           buyToken: buyTokenAddress,
           sellToken: sellTokenAddress,
-          sellAmount: (Number(amount)).toString(),
+          sellAmount: (Number(amount) * 1e18).toString(),
           taker: fromAddress,
           takerAddress: fromAddress,
           slippagePercentage: '1', // 1% slippage
@@ -586,7 +586,7 @@ export class SdkService {
             method: 'GET',
             headers: { 
               '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              //'0x-version': 'v2',
+              '0x-version': 'v2',
               'Accept': 'application/json'
            }
         });
