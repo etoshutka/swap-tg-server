@@ -568,9 +568,9 @@ export class SdkService {
           
           // Log balance before swap
           const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(params.fromAddress)).balance);
-          const balanceBeforeWei = BigInt(balanceBefore);
+          
           console.log(`Balance before swap: ${balanceBefore}`);
-          console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
+          
 
           const sellAmountWei = BigInt(amount) * BigInt(1e18);
           console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
@@ -643,15 +643,10 @@ export class SdkService {
           console.log(`Gas Price: ${gasPrice.toString()} wei`);
           console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} BNB)`);
 
-          if (totalGasCost > balanceBeforeWei) {
-            throw new Error(`Insufficient funds for gas. Need ${totalGasCost.toString()} wei, have ${balanceBeforeWei.toString()} wei`);
-          }
-      
+                
           const totalRequired = totalGasCost + sellAmountWei;
       
-          if (totalRequired > balanceBeforeWei) {
-            throw new Error(`Insufficient funds for swap and gas. Need ${totalRequired.toString()} wei, have ${balanceBeforeWei.toString()} wei`);
-          }
+          console.log("totalRequired", totalRequired)
 
           console.log('Final transaction details:', {
             to: quoteData.transaction.to,
@@ -661,7 +656,7 @@ export class SdkService {
             totalGasCost: totalGasCost.toString(),
             swapAmount: sellAmountWei.toString(),
             totalRequired: totalRequired.toString(),
-            balance: balanceBeforeWei.toString(),
+            balance: balanceBefore.toString(),
           });
 
             
