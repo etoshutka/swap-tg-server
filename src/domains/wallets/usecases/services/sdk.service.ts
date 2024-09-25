@@ -554,14 +554,24 @@ export class SdkService {
         case Network.ETH:
         const isEth = network === Network.ETH;
         const sdk = isEth ? this.ethSdk : this.bscSdk;
-        const zeroXApiUrl = isEth ? 'https://api.0x.org' : 'https://bsc.api.0x.org';
+        const zeroXApiUrl = 'https://api.0x.org' // isEth ? 'https://api.0x.org' : 'https://bsc.api.0x.org';
         const nativeSymbol = isEth ? 'ETH' : 'BNB';
         const chainId = isEth ? '1' : '56';
+
+        const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+        const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+
+        const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
+
+        const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
+        const buyTokenAddress = toTokenAddress || nativeTokenAddress;
+    
+
     
         const quoteParams = new URLSearchParams({
           chainId,
-          buyToken: toTokenAddress || nativeSymbol,
-          sellToken: fromTokenAddress || nativeSymbol,
+          buyToken: buyTokenAddress,
+          sellToken: sellTokenAddress,
           sellAmount: (Number(amount) * 1e18).toString(), // Конвертируем в wei
           takerAddress: fromAddress,
         });
@@ -573,7 +583,7 @@ export class SdkService {
             method: 'GET',
             headers: { 
               '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              '0x-version': 'v2',
+              //'0x-version': 'v2',
               'Accept': 'application/json'
            }
         });
