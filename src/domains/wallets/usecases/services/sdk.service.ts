@@ -632,21 +632,14 @@ export class SdkService {
           const quoteData = await response.json();
           console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
       
-          const gasLimit = BigInt(priceData.gas);
-          const gasPrice = BigInt(priceData.gasPrice);
+          const gasLimit = priceData.gas;
+          const gasPrice = priceData.gasPrice;
           const totalGasCost = gasLimit * gasPrice;
       
           console.log(`Gas Limit: ${gasLimit.toString()}`);
           console.log(`Gas Price: ${gasPrice.toString()} wei`);
           console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
-      
-          const totalRequired = totalGasCost + sellAmountWei;
-          console.log(`Total required: ${totalRequired.toString()} wei (${Number(totalRequired) / 1e18} ${nativeSymbol})`);
-      
-          if (totalRequired > balanceBeforeWei) {
-            throw new Error(`Insufficient funds for swap and gas. Need ${totalRequired.toString()} wei, have ${balanceBeforeWei.toString()} wei`);
-          }
-      
+  
           console.log('Final transaction details:', {
             to: quoteData.transaction.to,
             value: quoteData.transaction.value,
@@ -654,7 +647,6 @@ export class SdkService {
             gasPrice: gasPrice.toString(),
             totalGasCost: totalGasCost.toString(),
             swapAmount: sellAmountWei.toString(),
-            totalRequired: totalRequired.toString(),
             balance: balanceBeforeWei.toString(),
           });
       
@@ -665,8 +657,8 @@ export class SdkService {
             data: quoteData.transaction.data,
             fromPrivateKey,
             fee: {
-              gasLimit: gasLimit.toString(),
-              gasPrice: gasPrice.toString(),
+              gasLimit: gasLimit,
+              gasPrice: gasPrice,
             }
           });
       
