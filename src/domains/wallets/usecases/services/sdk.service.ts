@@ -584,9 +584,9 @@ export class SdkService {
           taker: fromAddress,
         });
     
-        console.log('Price API Request URL:', `${zeroXApiUrl}/swap/permit2/price?${priceParams}`);
+        console.log('Price API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`);
     
-        const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/price?${priceParams}`, {
+        const priceResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`, {
           method: 'GET',
           headers: { 
             '0x-api-key': this.configService.get("ZEROX_API_KEY"),
@@ -612,9 +612,9 @@ export class SdkService {
           taker: fromAddress,
         });
     
-        console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`);
+        console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`);
     
-        const response = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`, {
+        const response = await fetch(`${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`, {
           method: 'GET',
           headers: { 
             '0x-api-key': this.configService.get("ZEROX_API_KEY"),
