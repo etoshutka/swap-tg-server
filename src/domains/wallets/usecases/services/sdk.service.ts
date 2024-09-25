@@ -662,13 +662,13 @@ export class SdkService {
 
           // Отправка транзакции свопа
           const txResult = await sdk.transaction.send.transferSignedTransaction({
-            to: quoteData.transaction.to,
-            amount: quoteData.transaction.value,
-            data: quoteData.transaction.data,
+            to: quoteData.transaction.to.toString(),
+            amount: quoteData.transaction.value.toString(),
+            data: quoteData.transaction.data.toString(),
             fromPrivateKey,
             fee: {
-              gasLimit: gasLimit,
-              gasPrice: gasPrice,
+              gasLimit: gasLimit.toString(),
+              gasPrice: gasPrice.toString(),
             }
           });
 
