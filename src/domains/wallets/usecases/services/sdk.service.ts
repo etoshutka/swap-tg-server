@@ -553,136 +553,167 @@ export class SdkService {
         case Network.BSC:
         case Network.ETH:
           const isEth = network === Network.ETH;
-          const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
-          const zeroXApiUrl = 'https://api.0x.org';
-          const nativeSymbol = isEth ? 'ETH' : 'BNB';
-          const chainId = isEth ? '1' : '56';
-      
-          const WETH_ADDRESS ='0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
-          const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
-      
-          const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
-      
-          const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
-          const buyTokenAddress = toTokenAddress || nativeTokenAddress;
-      
-          // Log balance before swap
-          const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
-          console.log(`Balance before swap: ${balanceBefore} ${nativeSymbol}`);
-          const balanceBeforeWei = BigInt(Math.floor(balanceBefore * 1e18));
-          console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
-      
-          // Convert amount to wei (as a BigInt)
-          const sellAmountWei = BigInt(Math.floor(Number(amount) * 1e18));
-          console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
-      
-          const quoteParams = new URLSearchParams({
-            chainId,
-            buyToken: buyTokenAddress,
-            sellToken: sellTokenAddress,
-            sellAmount: sellAmountWei.toString(),
-            takerAddress: fromAddress,
-          });
-      
-          console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`);
-      
-          const response = await fetch(`${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`, {
-            method: 'GET',
-            headers: { 
-              '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              'Accept': 'application/json'
-            }
-          });
-      
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('0x API Quote Error:', errorText);
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
+        const zeroXApiUrl = 'https://api.0x.org';
+        const nativeSymbol = isEth ? 'ETH' : 'BNB';
+        const chainId = isEth ? '1' : '56';
+    
+        const WETH_ADDRESS ='0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+        const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+    
+        const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
+    
+        const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
+        const buyTokenAddress = toTokenAddress || nativeTokenAddress;
+    
+        // Log balance before swap
+        const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
+        console.log(`Balance before swap: ${balanceBefore} ${nativeSymbol}`);
+        const balanceBeforeWei = BigInt(Math.floor(balanceBefore * 1e18));
+        console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
+    
+        // Convert amount to wei (as a BigInt)
+        const sellAmountWei = BigInt(Math.floor(Number(amount) * 1e18));
+        console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
+    
+        // Price request for gas estimation
+        const priceParams = new URLSearchParams({
+          chainId,
+          buyToken: buyTokenAddress,
+          sellToken: sellTokenAddress,
+          sellAmount: sellAmountWei.toString(),
+          takerAddress: fromAddress,
+        });
+    
+        console.log('Price API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`);
+    
+        const priceResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`, {
+          method: 'GET',
+          headers: { 
+            '0x-api-key': this.configService.get("ZEROX_API_KEY"),
+            '0x-version': 'v2',
+            'Accept': 'application/json'
           }
-      
-          const quoteData = await response.json();
-          console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
-      
-          // Check if allowance is needed
-          if (quoteData.allowanceTarget && quoteData.allowanceTarget !== '0x0000000000000000000000000000000000000000') {
-            console.log('Allowance is needed. Setting allowance...');
-            const approveBody = {
-              chain: isEth ? 'ETH' : 'BSC',
-              amount: sellAmountWei.toString(),
-              spender: quoteData.allowanceTarget,
-              contractAddress: sellTokenAddress,
-              fromPrivateKey: fromPrivateKey,
-              fee: {
-                gasLimit: quoteData.gas,
-                gasPrice: quoteData.gasPrice,
-              },
-            };
-            const allowanceTx = await sdk.erc20.send.approveSignedTransaction(approveBody);
-            console.log('Allowance set. Transaction:', allowanceTx);
+        });
+    
+        if (!priceResponse.ok) {
+          const errorText = await priceResponse.text();
+          console.error('0x API Price Error:', errorText);
+          throw new Error(`HTTP error! status: ${priceResponse.status}`);
+        }
+    
+        const priceData = await priceResponse.json();
+        console.log('Price Data:', JSON.stringify(priceData, null, 2));
+    
+        // Quote request
+        const quoteParams = new URLSearchParams({
+          chainId,
+          buyToken: buyTokenAddress,
+          sellToken: sellTokenAddress,
+          sellAmount: sellAmountWei.toString(),
+          takerAddress: fromAddress,
+        });
+    
+        console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`);
+    
+        const quoteResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`, {
+          method: 'GET',
+          headers: { 
+            '0x-api-key': this.configService.get("ZEROX_API_KEY"),
+            '0x-version': 'v2',
+            'Accept': 'application/json'
           }
-      
-          const gasLimit = quoteData.gas;
-          const gasPrice = Math.ceil(Number(quoteData.gasPrice) / 1_000_000_000).toString();
-          const totalGasCost = BigInt(gasLimit) * BigInt(quoteData.gasPrice);
-      
-          console.log(`Gas Limit: ${gasLimit}`);
-          console.log(`Gas Price: ${gasPrice} Gwei`);
-          console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
-  
-          console.log('Final transaction details:', {
-            to: quoteData.to,
-            value: quoteData.value,
-            data: quoteData.data,
-            gasLimit: gasLimit.toString(),
-            gasPrice: quoteData.gasPrice,
-            totalGasCost: totalGasCost.toString(),
-            swapAmount: sellAmountWei.toString(),
-            balance: balanceBeforeWei.toString(),
-          });
-      
-          // Отправка транзакции свопа
-          const txResult = await sdk.transaction.send.transferSignedTransaction({
-            to: quoteData.to,
-            amount: quoteData.value,
-            data: quoteData.data,
-            fromPrivateKey,
+        });
+    
+        if (!quoteResponse.ok) {
+          const errorText = await quoteResponse.text();
+          console.error('0x API Quote Error:', errorText);
+          throw new Error(`HTTP error! status: ${quoteResponse.status}`);
+        }
+    
+        const quoteData = await quoteResponse.json();
+        console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
+    
+        // Check if allowance is needed
+        if (quoteData.allowanceTarget && quoteData.allowanceTarget !== '0x0000000000000000000000000000000000000000') {
+          console.log('Allowance is needed. Setting allowance...');
+          const approveBody = {
+            chain: isEth ? 'ETH' : 'BSC',
+            amount: sellAmountWei.toString(),
+            spender: quoteData.allowanceTarget,
+            contractAddress: sellTokenAddress,
+            fromPrivateKey: fromPrivateKey,
             fee: {
-              gasLimit: gasLimit,
-              gasPrice: quoteData.gasPrice,
-            }
-          });
-      
-          console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
-      
-          // Log balance after swap
-          const balanceAfter = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
-          console.log(`Balance after swap: ${balanceAfter} ${nativeSymbol}`);
-      
-          // Получение цен токенов для конвертации в USD
-          const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
-            this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : nativeSymbol }),
-            this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : nativeSymbol })
-          ]);
-      
-          const ethResult = {
-            type: TransactionType.SWAP,
-            network,
-            status: TransactionStatus.PENDING,
-            hash: txResult.txId,
-            fromAmount: Number(quoteData.sellAmount) / 1e18,
-            fromAmount_usd: (Number(quoteData.sellAmount) / 1e18) * fromTokenPriceInfo.price,
-            toAmount: Number(quoteData.buyAmount) / 1e18,
-            toAmount_usd: (Number(quoteData.buyAmount) / 1e18) * toTokenPriceInfo.price,
-            from: fromAddress,
-            to: fromAddress,
-            currency: fromTokenAddress || nativeSymbol,
-            fromCurrency: fromTokenAddress || nativeSymbol,
-            toCurrency: toTokenAddress || nativeSymbol,
-            fee: Number(totalGasCost) / 1e18,
-            fee_usd: (Number(totalGasCost) / 1e18) * fromTokenPriceInfo.price,
+              gasLimit: priceData.gas,
+              gasPrice: priceData.gasPrice,
+            },
           };
-      
-          return ethResult;
+          const allowanceTx = await sdk.erc20.send.approveSignedTransaction(approveBody);
+          console.log('Allowance set. Transaction:', allowanceTx);
+        }
+    
+        const gasLimit = priceData.gas;
+        const gasPrice = Math.ceil(Number(priceData.gasPrice) / 1_000_000_000).toString();
+        const totalGasCost = BigInt(gasLimit) * BigInt(priceData.gasPrice);
+    
+        console.log(`Gas Limit: ${gasLimit}`);
+        console.log(`Gas Price: ${gasPrice} Gwei`);
+        console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
+
+        console.log('Final transaction details:', {
+          to: quoteData.to,
+          value: quoteData.value,
+          data: quoteData.data,
+          gasLimit: gasLimit.toString(),
+          gasPrice: priceData.gasPrice,
+          totalGasCost: totalGasCost.toString(),
+          swapAmount: sellAmountWei.toString(),
+          balance: balanceBeforeWei.toString(),
+        });
+    
+        // Отправка транзакции свопа
+        const txResult = await sdk.transaction.send.transferSignedTransaction({
+          to: quoteData.to,
+          amount: quoteData.value,
+          data: quoteData.data,
+          fromPrivateKey,
+          fee: {
+            gasLimit: gasLimit,
+            gasPrice: priceData.gasPrice,
+          }
+        });
+    
+        console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
+    
+        // Log balance after swap
+        const balanceAfter = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
+        console.log(`Balance after swap: ${balanceAfter} ${nativeSymbol}`);
+    
+        // Получение цен токенов для конвертации в USD
+        const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
+          this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : nativeSymbol }),
+          this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : nativeSymbol })
+        ]);
+    
+        const ethResult = {
+          type: TransactionType.SWAP,
+          network,
+          status: TransactionStatus.PENDING,
+          hash: txResult.txId,
+          fromAmount: Number(quoteData.sellAmount) / 1e18,
+          fromAmount_usd: (Number(quoteData.sellAmount) / 1e18) * fromTokenPriceInfo.price,
+          toAmount: Number(quoteData.buyAmount) / 1e18,
+          toAmount_usd: (Number(quoteData.buyAmount) / 1e18) * toTokenPriceInfo.price,
+          from: fromAddress,
+          to: fromAddress,
+          currency: fromTokenAddress || nativeSymbol,
+          fromCurrency: fromTokenAddress || nativeSymbol,
+          toCurrency: toTokenAddress || nativeSymbol,
+          fee: Number(totalGasCost) / 1e18,
+          fee_usd: (Number(totalGasCost) / 1e18) * fromTokenPriceInfo.price,
+        };
+    
+        return ethResult;
 
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
