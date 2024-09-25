@@ -567,12 +567,23 @@ export class SdkService {
           // Log balance before swap
           const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
           console.log(`Balance before swap: ${balanceBefore} ${nativeSymbol}`);
+          const balanceBeforeWei = BigInt(Math.floor(balanceBefore * 1e18));
+          console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
+
+          // Convert amount to wei (as a BigInt)
+          const sellAmountWei = BigInt(Math.floor(Number(amount) * 1e18));
+          console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
+
+          // Check if balance is sufficient
+          if (balanceBeforeWei < sellAmountWei) {
+            throw new Error(`Insufficient balance. Required: ${sellAmountWei}, Available: ${balanceBeforeWei}`);
+          }
 
           const priceParams = new URLSearchParams({
             chainId,
             buyToken: buyTokenAddress,
             sellToken: sellTokenAddress,
-            sellAmount: amount.toString(),
+            sellAmount: sellAmountWei.toString(),
             taker: fromAddress,
           });
 
@@ -600,7 +611,7 @@ export class SdkService {
             chainId,
             buyToken: buyTokenAddress,
             sellToken: sellTokenAddress,
-            sellAmount: amount.toString(),
+            sellAmount: sellAmountWei.toString(),
             taker: fromAddress,
           });
 
@@ -632,6 +643,11 @@ export class SdkService {
           console.log(`Gas Price: ${gasPrice} wei`);
           console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
 
+          // Check if balance is sufficient for swap + gas
+          const totalRequired = BigInt(quoteData.value || 0) + totalGasCost;
+          if (balanceBeforeWei < totalRequired) {
+            throw new Error(`Insufficient balance for swap and gas. Required: ${totalRequired}, Available: ${balanceBeforeWei}`);
+          }
 
           console.log('Final transaction details:', {
             to: quoteData.transaction.to,
@@ -640,7 +656,7 @@ export class SdkService {
             gasPrice: gasPrice.toString(),
             totalGasCost: totalGasCost.toString(),
             swapAmount: quoteData.sellAmount,
-            balance: balanceBefore.toString(),
+            balance: balanceBeforeWei.toString(),
           });
 
           // Отправка транзакции свопа
