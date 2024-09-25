@@ -558,13 +558,9 @@ export class SdkService {
           const nativeSymbol = isEth ? 'ETH' : 'BNB';
           const chainId = isEth ? '1' : '56';
       
-          const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
-          const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
-      
-          const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
-      
-          const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
-          const buyTokenAddress = toTokenAddress || nativeTokenAddress;
+          // Use native symbol as sellToken if fromTokenAddress is null
+          const sellTokenAddress = fromTokenAddress || nativeSymbol;
+          const buyTokenAddress = toTokenAddress || nativeSymbol;
       
           // Log balance before swap
           const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
@@ -581,49 +577,20 @@ export class SdkService {
             throw new Error(`Insufficient balance. Required: ${sellAmountWei}, Available: ${balanceBeforeWei}`);
           }
       
-          const priceParams = new URLSearchParams({
-            chainId,
-            buyToken: buyTokenAddress,
-            sellToken: sellTokenAddress,
-            sellAmount: sellAmountWei.toString(),
-            taker: fromAddress,
-          });
-      
-          console.log('Price API Request URL:', `${zeroXApiUrl}/swap/permit2/price?${priceParams}`);
-      
-          const priceResponse = await fetch(`${zeroXApiUrl}/swap/permit2/price?${priceParams}`, {
-            method: 'GET',
-            headers: { 
-              '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              '0x-version': 'v2',
-              'Accept': 'application/json'
-            }
-          });
-      
-          if (!priceResponse.ok) {
-            const errorText = await priceResponse.text();
-            console.error('0x API Price Error:', errorText);
-            throw new Error(`HTTP error! status: ${priceResponse.status}`);
-          }
-      
-          const priceData = await priceResponse.json();
-          console.log('Price Data:', JSON.stringify(priceData, null, 2));
-      
           const quoteParams = new URLSearchParams({
             chainId,
             buyToken: buyTokenAddress,
             sellToken: sellTokenAddress,
             sellAmount: sellAmountWei.toString(),
-            taker: fromAddress,
+            takerAddress: fromAddress,
           });
       
-          console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`);
+          console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/v1/quote?${quoteParams}`);
       
-          const response = await fetch(`${zeroXApiUrl}/swap/permit2/quote?${quoteParams}`, {
+          const response = await fetch(`${zeroXApiUrl}/swap/v1/quote?${quoteParams}`, {
             method: 'GET',
             headers: { 
               '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-              '0x-version': 'v2',
               'Accept': 'application/json'
             }
           });
@@ -637,8 +604,8 @@ export class SdkService {
           const quoteData = await response.json();
           console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
       
-          const gasLimit = priceData.gas;
-          const gasPrice = Math.max(5, Math.ceil(Number(gasLimit) / 1_000_000_000)).toString();
+          const gasLimit = quoteData.gas;
+          const gasPrice = Math.max(5, Math.ceil(Number(quoteData.gasPrice) / 1_000_000_000)).toString();
           const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
       
           console.log(`Gas Limit: ${gasLimit}`);
@@ -652,8 +619,8 @@ export class SdkService {
           }
       
           console.log('Final transaction details:', {
-            to: quoteData.to,
-            value: quoteData.value,
+            to: quoteData.transaction.to,
+            amount: quoteData.transaction.value,
             gasLimit: gasLimit.toString(),
             gasPrice: gasPrice.toString(),
             totalGasCost: totalGasCost.toString(),
@@ -689,7 +656,7 @@ export class SdkService {
       
           // Получение цен токенов для конвертации в USD
           const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
-            this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : nativeSymbol }),
+            this.cmcService.getTokenPrice({ symbol: fromTokenAddress ? undefined : nativeSymbol }),
             this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : nativeSymbol })
           ]);
       
