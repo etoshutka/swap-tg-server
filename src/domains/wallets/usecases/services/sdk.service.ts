@@ -573,7 +573,10 @@ export class SdkService {
           buyToken: buyTokenAddress,
           sellToken: sellTokenAddress,
           sellAmount: (Number(amount) * 1e18).toString(), // Конвертируем в wei
+          taker: fromAddress,
           takerAddress: fromAddress,
+          slippagePercentage: '1', // 1% slippage
+          //skipValidation: 'true', // Опционально: пропустить некоторые проверки для ускорения
         });
 
         console.log('Quote Params:', quoteParams.toString());
