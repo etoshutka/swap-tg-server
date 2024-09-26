@@ -636,7 +636,7 @@ export class SdkService {
           console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
       
           const gasLimit = priceData.gas;
-          const gasPrice = priceData.gasPrice;
+          const gasPrice = Math.ceil(Number(priceData.gasPrice / 1_000_000_000)).toString();
           const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
       
           console.log(`Gas Limit: ${gasLimit.toString()}`);
@@ -648,7 +648,7 @@ export class SdkService {
           if (sellTokenAddress !== nativeTokenAddress) {
             console.log('Setting approval for ERC20 token...');
             const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
-              amount: quoteData.transaction.value,
+              amount: amount,
               spender: quoteData.transaction.to,
               contractAddress: sellTokenAddress,
               fromPrivateKey,
@@ -665,7 +665,7 @@ export class SdkService {
             console.log('Executing ERC20 token swap...');
             txResult = await sdk.erc20.send.transferSignedTransaction({
               to: quoteData.transaction.to,
-              amount: quoteData.transaction.value,
+              amount: amount,
               fromPrivateKey,
               contractAddress: sellTokenAddress,
               digits: decimals,
@@ -678,7 +678,7 @@ export class SdkService {
             console.log('Executing native token swap...');
             txResult = await sdk.transaction.send.transferSignedTransaction({
               to: quoteData.transaction.to,
-              amount: quoteData.transaction.value,
+              amount: amount,
               data: quoteData.transaction.data,
               fromPrivateKey,
               fee: {
