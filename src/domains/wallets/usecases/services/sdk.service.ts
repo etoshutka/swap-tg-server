@@ -649,7 +649,7 @@ export class SdkService {
             console.log('Setting approval for ERC20 token...');
             const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
               amount: amount,
-              spender: quoteData.transaction.to,
+              spender: quoteData.issues.allowance.spender,
               contractAddress: sellTokenAddress,
               fromPrivateKey,
               fee: {
@@ -664,7 +664,7 @@ export class SdkService {
       
             console.log('Executing ERC20 token swap...');
             txResult = await sdk.erc20.send.transferSignedTransaction({
-              to: quoteData.issues.allowance.spender,
+              to: quoteData.transaction.to,
               amount: amount,
               fromPrivateKey,
               contractAddress: sellTokenAddress,
