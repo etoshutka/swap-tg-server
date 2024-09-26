@@ -573,14 +573,14 @@ export class SdkService {
         console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
     
         // Convert amount to wei (as a BigInt)
-        // const sellAmountWei = BigInt(Math.floor(Number(amount) * 1e18));
+        const sellAmountWei = BigInt(Math.floor(Number(amount) * 1e18));
         // console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
     
         const priceParams = new URLSearchParams({
           chainId,
           buyToken: buyTokenAddress,
           sellToken: sellTokenAddress,
-          sellAmount: amount,
+          sellAmount: sellAmountWei.toString(),
           taker: fromAddress,
         });
     
@@ -608,7 +608,7 @@ export class SdkService {
           chainId,
           buyToken: buyTokenAddress,
           sellToken: sellTokenAddress,
-          sellAmount: amount,
+          sellAmount: sellAmountWei.toString(),
           taker: fromAddress,
         });
     
@@ -634,7 +634,7 @@ export class SdkService {
     
      
           const approveTx:any = await sdk.erc20.send.approveSignedTransaction({
-            amount: amount,
+            amount: sellAmountWei.toString(),
             spender: priceData.issues.allowance.spender,
             contractAddress: sellTokenAddress,
             fromPrivateKey,
