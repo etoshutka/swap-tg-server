@@ -577,8 +577,8 @@ export class SdkService {
         console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
     
         // Convert amount to wei (as a BigInt)
-        const sellAmountWei = BigInt(Math.floor(Number(amount) * decimals));
-        // console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
+        const sellAmountWei = BigInt(Math.floor(Number(amount) * Number(10**decimals)));
+         console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
     
         const priceParams = new URLSearchParams({
           chainId,
