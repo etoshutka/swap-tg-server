@@ -664,7 +664,7 @@ export class SdkService {
       
             console.log('Executing ERC20 token swap...');
             txResult = await sdk.erc20.send.transferSignedTransaction({
-              to: quoteData.transaction.to,
+              to: quoteData.issues.allowance.spender,
               amount: amount,
               fromPrivateKey,
               contractAddress: sellTokenAddress,
