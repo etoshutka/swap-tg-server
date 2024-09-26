@@ -552,172 +552,145 @@ export class SdkService {
       switch (network) {
         case Network.BSC:
         case Network.ETH:
-        const isEth = network === Network.ETH;
-        const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
-        const zeroXApiUrl = 'https://api.0x.org';
-        const nativeSymbol = isEth ? 'ETH' : 'BNB';
-        const chainId = isEth ? '1' : '56';
-    
-        const WETH_ADDRESS ='0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
-        const WBNB_ADDRESS = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
-    
-        const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
-    
-        const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
-        const buyTokenAddress = toTokenAddress || nativeTokenAddress;
+          const isEth = network === Network.ETH;
+    const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
+    const zeroXApiUrl = 'https://api.0x.org';
+    const nativeSymbol = isEth ? 'ETH' : 'BNB';
+    const chainId = isEth ? '1' : '56';
 
-        const decimals: number = await sdk.erc20.decimals(fromTokenAddress);
-        console.log(decimals)
+    const WETH_ADDRESS = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+    const WBNB_ADDRESS = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 
-    
-        // Log balance before swap
-        const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
-        console.log(`Balance before swap: ${balanceBefore} ${nativeSymbol}`);
-        const balanceBeforeWei = BigInt(Math.floor(balanceBefore * 1e18));
-        console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
-    
-        // Convert amount to wei (as a BigInt)
-        const sellAmountWei = BigInt(Math.floor(Number(amount) * Number(10**decimals)));
-         console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
-    
-        const priceParams = new URLSearchParams({
-          chainId,
-          buyToken: buyTokenAddress,
-          sellToken: sellTokenAddress,
-          sellAmount: sellAmountWei.toString(),
-          taker: fromAddress,
-        });
-    
-        console.log('Price API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`);
-    
-        const priceResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`, {
-          method: 'GET',
-          headers: { 
-            '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-            '0x-version': 'v2',
-            'Accept': 'application/json'
-          }
-        });
-    
-        if (!priceResponse.ok) {
-          const errorText = await priceResponse.text();
-          console.error('0x API Price Error:', errorText);
-          throw new Error(`HTTP error! status: ${priceResponse.status}`);
-        }
-    
-        const priceData = await priceResponse.json();
-        console.log('Price Data:', JSON.stringify(priceData, null, 2));
-    
-        const quoteParams = new URLSearchParams({
-          chainId,
-          buyToken: buyTokenAddress,
-          sellToken: sellTokenAddress,
-          sellAmount: sellAmountWei.toString(),
-          taker: fromAddress,
-        });
-    
-        console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`);
-    
-        const response = await fetch(`${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`, {
-          method: 'GET',
-          headers: { 
-            '0x-api-key': this.configService.get("ZEROX_API_KEY"),
-            '0x-version': 'v2',
-            'Accept': 'application/json'
-          }
-        });
-    
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('0x API Quote Error:', errorText);
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-    
-        const quoteData = await response.json();
-        console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
-    
-     
-        if (sellTokenAddress !== nativeTokenAddress) {
-          console.log('Setting approval for ERC20 token...');
-          const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
-            amount: amount,
-            spender: quoteData.transaction.to, // Use the 'to' address from the transaction as the spender
-            contractAddress: sellTokenAddress,
-            fromPrivateKey,
-            fee: {
-              gasLimit: quoteData.gas,
-              gasPrice: quoteData.gasPrice,
-            },
-          });
-          console.log('Approval transaction sent:', approveTx);
-    
-          const approvalTransaction = await sdk.blockchain.getTransaction(approveTx.txId);
-          console.log('Approval transaction confirmed:', approvalTransaction);
-        } else {
-          console.log('No approval needed for native token swap.');
-        }
+    const nativeTokenAddress = isEth ? WETH_ADDRESS : WBNB_ADDRESS;
 
-        const gasLimit = priceData.gas;
-        const gasPrice = Math.ceil(Number(gasLimit) / 1_000_000_000).toString();
-        const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
-    
-        console.log(`Gas Limit: ${gasLimit.toString()}`);
-        console.log(`Gas Price: ${gasPrice.toString()} wei`);
-        console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
-  
-        console.log('Final transaction details:', {
-          to: quoteData.transaction.to,
-          value: quoteData.transaction.value,
-          gasLimit: gasLimit.toString(),
-          gasPrice: gasPrice.toString(),
-          totalGasCost: totalGasCost.toString(),
-          swapAmount: sellAmountWei.toString(),
-          balance: balanceBeforeWei.toString(),
-        });
-    
-        // Отправка транзакции свопа
-        const txResult = await sdk.transaction.send.transferSignedTransaction({
-          to: quoteData.transaction.to,
-          amount: amount,
-          data: quoteData.transaction.data,
-          fromPrivateKey,
-          fee: {
-            gasLimit: gasLimit,
-            gasPrice: gasPrice,
-          }
-        });
-    
-        console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
-    
-        // Log balance after swap
-        const balanceAfter = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
-        console.log(`Balance after swap: ${balanceAfter} ${nativeSymbol}`);
-    
-        // Получение цен токенов для конвертации в USD
-        const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
-          this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : nativeSymbol }),
-          this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : nativeSymbol })
-        ]);
-    
-        const ethResult = {
-          type: TransactionType.SWAP,
-          network,
-          status: TransactionStatus.PENDING,
-          hash: txResult.txId,//transaction.transactionHash,
-          fromAmount: Number(quoteData.sellAmount) / 1e18,
-          fromAmount_usd: (Number(quoteData.sellAmount) / 1e18) * fromTokenPriceInfo.price,
-          toAmount: Number(quoteData.buyAmount) / 1e18,
-          toAmount_usd: (Number(quoteData.buyAmount) / 1e18) * toTokenPriceInfo.price,
-          from: fromAddress,
-          to: fromAddress,
-          currency: fromTokenAddress || nativeSymbol,
-          fromCurrency: fromTokenAddress || nativeSymbol,
-          toCurrency: toTokenAddress || nativeSymbol,
-          fee: Number(quoteData.totalNetworkFee) / 1e18,
-          fee_usd: (Number(quoteData.totalNetworkFee) / 1e18) * fromTokenPriceInfo.price,
-        };
-    
-        return ethResult;
+    const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
+    const buyTokenAddress = toTokenAddress || nativeTokenAddress;
+
+    const isNativeToken = sellTokenAddress === nativeTokenAddress;
+
+    const decimals: number = isNativeToken ? 18 : await sdk.erc20.decimals(sellTokenAddress);
+    console.log('Token decimals:', decimals);
+
+    // Convert amount to wei (as a BigInt)
+    const sellAmountWei = BigInt(Math.floor(Number(amount) * 10**decimals));
+    console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
+
+   
+
+    const quoteParams = new URLSearchParams({
+      chainId,
+      buyToken: buyTokenAddress,
+      sellToken: sellTokenAddress,
+      sellAmount: sellAmountWei.toString(),
+      taker: fromAddress,
+    });
+
+    console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`);
+
+    const quoteResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`, {
+      method: 'GET',
+      headers: { 
+        '0x-api-key': this.configService.get("ZEROX_API_KEY"),
+        '0x-version': 'v2',
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!quoteResponse.ok) {
+      const errorText = await quoteResponse.text();
+      console.error('0x API Quote Error:', errorText);
+      throw new Error(`HTTP error! status: ${quoteResponse.status}`);
+    }
+
+    const quoteData = await quoteResponse.json();
+    console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
+
+    // Check if we have enough native token for gas
+    const nativeBalance = await sdk.blockchain.getBlockchainAccountBalance(fromAddress);
+    const nativeBalanceWei = BigInt(nativeBalance.balance);
+    const gasLimit = BigInt(quoteData.gas);
+    const gasPrice = BigInt(quoteData.gasPrice);
+    const totalGasCost = gasLimit * gasPrice;
+
+    console.log(`Native balance: ${nativeBalanceWei.toString()} wei`);
+    console.log(`Total Gas Cost: ${totalGasCost.toString()} wei`);
+
+    if (nativeBalanceWei < totalGasCost) {
+      throw new Error(`Insufficient native token for gas. Required: ${totalGasCost.toString()}, Available: ${nativeBalanceWei.toString()}`);
+    }
+
+    let txResult;
+
+    if (isNativeToken) {
+      console.log('Sending native token swap transaction...');
+      txResult = await sdk.transaction.send.transferSignedTransaction({
+        to: quoteData.transaction.to,
+        amount: quoteData.transaction.value,
+        data: quoteData.transaction.data,
+        fromPrivateKey,
+        fee: {
+          gasLimit: quoteData.gas,
+          gasPrice: quoteData.gasPrice,
+        }
+      });
+    } else {
+      console.log('Setting approval for ERC20 token...');
+      const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
+        amount: amount,
+        spender: quoteData.transaction.to,
+        contractAddress: sellTokenAddress,
+        fromPrivateKey,
+        fee: {
+          gasLimit: quoteData.gas,
+          gasPrice: quoteData.gasPrice,
+        },
+      });
+      console.log('Approval transaction sent:', approveTx);
+
+      const approvalTransaction = await sdk.blockchain.getTransaction(approveTx.txId);
+      console.log('Approval transaction confirmed:', approvalTransaction);
+
+      console.log('Sending ERC20 token swap transaction...');
+      txResult = await sdk.erc20.send.transferSignedTransaction({
+        to: quoteData.transaction.to,
+        amount: amount,
+        digits: decimals,
+        fromPrivateKey,
+        contractAddress: sellTokenAddress,
+        fee: {
+          gasLimit: quoteData.gas,
+          gasPrice: quoteData.gasPrice,
+        }
+      });
+    }
+
+    console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
+
+    // Получение цен токенов для конвертации в USD
+    const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
+      this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : nativeSymbol }),
+      this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : nativeSymbol })
+    ]);
+
+    const ethresult = {
+      type: TransactionType.SWAP,
+      network,
+      status: TransactionStatus.PENDING,
+      hash: txResult.txId,
+      fromAmount: Number(quoteData.sellAmount) / 10**decimals,
+      fromAmount_usd: (Number(quoteData.sellAmount) / 10**decimals) * fromTokenPriceInfo.price,
+      toAmount: Number(quoteData.buyAmount) / 1e18,
+      toAmount_usd: (Number(quoteData.buyAmount) / 1e18) * toTokenPriceInfo.price,
+      from: fromAddress,
+      to: fromAddress,
+      currency: fromTokenAddress || nativeSymbol,
+      fromCurrency: fromTokenAddress || nativeSymbol,
+      toCurrency: toTokenAddress || nativeSymbol,
+      fee: Number(totalGasCost) / 1e18,
+      fee_usd: (Number(totalGasCost) / 1e18) * fromTokenPriceInfo.price,
+    };
+
+    return ethresult;
 
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
