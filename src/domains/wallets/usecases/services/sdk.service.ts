@@ -633,18 +633,18 @@ export class SdkService {
         console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
     
      
-          const approveTx:any = await sdk.erc20.send.approveSignedTransaction({
-            amount: sellAmountWei.toString(),
-            spender: priceData.issues.allowance.spender,
-            contractAddress: sellTokenAddress,
-            fromPrivateKey,
-            fee: {
-              gasLimit: priceData.gas,
-              gasPrice: priceData.gasPrice,
-            },
-          });
+          // const approveTx:any = await sdk.erc20.send.approveSignedTransaction({
+          //   amount: sellAmountWei.toString(),
+          //   spender: priceData.issues.allowance.spender,
+          //   contractAddress: sellTokenAddress,
+          //   fromPrivateKey,
+          //   fee: {
+          //     gasLimit: priceData.gas,
+          //     gasPrice: priceData.gasPrice,
+          //   },
+          // });
 
-          const transaction = await sdk.blockchain.getTransaction(approveTx.txId);
+          // const transaction = await sdk.blockchain.getTransaction(approveTx.txId);
 
         const gasLimit = priceData.gas;
         const gasPrice = Math.ceil(Number(gasLimit) / 1_000_000_000).toString();
@@ -654,29 +654,29 @@ export class SdkService {
         console.log(`Gas Price: ${gasPrice.toString()} wei`);
         console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
   
-        // console.log('Final transaction details:', {
-        //   to: quoteData.transaction.to,
-        //   value: quoteData.transaction.value,
-        //   gasLimit: gasLimit.toString(),
-        //   gasPrice: gasPrice.toString(),
-        //   totalGasCost: totalGasCost.toString(),
-        //   swapAmount: sellAmountWei.toString(),
-        //   balance: balanceBeforeWei.toString(),
-        // });
+        console.log('Final transaction details:', {
+          to: quoteData.transaction.to,
+          value: quoteData.transaction.value,
+          gasLimit: gasLimit.toString(),
+          gasPrice: gasPrice.toString(),
+          totalGasCost: totalGasCost.toString(),
+          swapAmount: sellAmountWei.toString(),
+          balance: balanceBeforeWei.toString(),
+        });
     
-        // // Отправка транзакции свопа
-        // const txResult = await sdk.transaction.send.transferSignedTransaction({
-        //   to: quoteData.transaction.to,
-        //   amount: quoteData.transaction.value,
-        //   data: quoteData.transaction.data,
-        //   fromPrivateKey,
-        //   fee: {
-        //     gasLimit: gasLimit,
-        //     gasPrice: gasPrice,
-        //   }
-        // });
+        // Отправка транзакции свопа
+        const txResult = await sdk.transaction.send.transferSignedTransaction({
+          to: quoteData.transaction.to,
+          amount: quoteData.transaction.value,
+          data: quoteData.transaction.data,
+          fromPrivateKey,
+          fee: {
+            gasLimit: gasLimit,
+            gasPrice: gasPrice,
+          }
+        });
     
-        // console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
+        console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
     
         // Log balance after swap
         const balanceAfter = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
@@ -692,7 +692,7 @@ export class SdkService {
           type: TransactionType.SWAP,
           network,
           status: TransactionStatus.PENDING,
-          hash: transaction.transactionHash,
+          hash: txResult.txId,//transaction.transactionHash,
           fromAmount: Number(quoteData.sellAmount) / 1e18,
           fromAmount_usd: (Number(quoteData.sellAmount) / 1e18) * fromTokenPriceInfo.price,
           toAmount: Number(quoteData.buyAmount) / 1e18,
