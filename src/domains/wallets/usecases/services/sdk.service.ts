@@ -565,6 +565,9 @@ export class SdkService {
     
         const sellTokenAddress = fromTokenAddress || nativeTokenAddress;
         const buyTokenAddress = toTokenAddress || nativeTokenAddress;
+
+        const decimals: number = await sdk.erc20.decimals(fromTokenAddress);
+
     
         // Log balance before swap
         const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
@@ -573,7 +576,7 @@ export class SdkService {
         console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
     
         // Convert amount to wei (as a BigInt)
-        const sellAmountWei = BigInt(Math.floor(Number(amount) * 1e18));
+        const sellAmountWei = BigInt(Math.floor(Number(amount) * decimals));
         // console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
     
         const priceParams = new URLSearchParams({
