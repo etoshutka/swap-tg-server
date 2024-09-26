@@ -668,7 +668,7 @@ export class SdkService {
             console.log('Executing native token swap...');
             txResult = await sdk.transaction.send.transferSignedTransaction({
               to: quoteData.transaction.to,
-              amount: amount,
+              amount: quoteData.transaction.value,
               data: quoteData.transaction.data,
               fromPrivateKey,
               fee: {
