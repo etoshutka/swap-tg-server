@@ -667,7 +667,7 @@ export class SdkService {
         // Отправка транзакции свопа
         const txResult = await sdk.transaction.send.transferSignedTransaction({
           to: quoteData.transaction.to,
-          amount: quoteData.transaction.value,
+          amount: amount,
           data: quoteData.transaction.data,
           fromPrivateKey,
           fee: {
