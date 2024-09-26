@@ -634,12 +634,9 @@ export class SdkService {
     
      
         if (sellTokenAddress !== nativeTokenAddress) {
-          console.log('Approving token transfer...');
-          const decimals: number = await sdk.erc20.decimals(sellTokenAddress);
-          const approveTx: any = await sdk.erc20.send.transferSignedTransaction({
-            digits: decimals,
+          const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
             amount: amount,
-            to: priceData.issues.allowance.spender,
+            spender: priceData.issues.allowance.spender,
             contractAddress: sellTokenAddress,
             fromPrivateKey,
             fee: isEth? {
