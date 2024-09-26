@@ -647,6 +647,7 @@ export class SdkService {
       
           if (sellTokenAddress !== nativeTokenAddress) {
             console.log('Setting approval for ERC20 token...');
+            if (quoteData.issues && quoteData.issues.allowance !== null) {
             const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
               amount: amount,
               spender: quoteData.issues.allowance.spender,
@@ -658,9 +659,10 @@ export class SdkService {
               },
             });
             console.log('Approval transaction sent:', approveTx);
-      
+          
             const approvalTransaction = await sdk.blockchain.getTransaction(approveTx.txId);
             console.log('Approval transaction confirmed:', approvalTransaction);
+          }
       
             console.log('Executing ERC20 token swap...');
             txResult = await sdk.erc20.send.transferSignedTransaction({
