@@ -665,17 +665,29 @@ export class SdkService {
           }
       
             console.log('Executing ERC20 token swap...');
-            txResult = await sdk.erc20.send.transferSignedTransaction({
+            console.log('Executing native token swap...');
+            txResult = await sdk.transaction.send.transferSignedTransaction({
               to: quoteData.transaction.to,
               amount: amount,
+              data: quoteData.transaction.data,
               fromPrivateKey,
-              contractAddress: sellTokenAddress,
-              digits: decimals,
-              fee: isEth? {
+              fee: {
                 gasLimit: gasLimit,
                 gasPrice: gasPrice,
-              } : undefined,
+              }
             });
+            // txResult = await sdk.erc20.send.transferSignedTransaction({
+            //   to: quoteData.transaction.to,
+            //   amount: amount,
+            //   fromPrivateKey,
+            //   contractAddress: sellTokenAddress,
+            //   digits: decimals,
+            //   data: quoteData.transaction.data,
+            //   fee: isEth? {
+            //     gasLimit: gasLimit,
+            //     gasPrice: gasPrice,
+            //   } : undefined,
+            
           } else {
             console.log('Executing native token swap...');
             txResult = await sdk.transaction.send.transferSignedTransaction({
