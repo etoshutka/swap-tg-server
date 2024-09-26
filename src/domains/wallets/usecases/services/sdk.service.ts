@@ -642,10 +642,10 @@ export class SdkService {
             to: priceData.issues.allowance.spender,
             contractAddress: sellTokenAddress,
             fromPrivateKey,
-            fee: {
+            fee: isEth? {
               gasLimit: priceData.gas,
               gasPrice: priceData.gasPrice,
-            },
+            }: undefined,
           });
           console.log('Approval transaction sent:', approveTx);
 
