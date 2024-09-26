@@ -653,8 +653,8 @@ export class SdkService {
               contractAddress: sellTokenAddress,
               fromPrivateKey,
               fee: {
-                gasLimit: quoteData.gas,
-                gasPrice: quoteData.gasPrice,
+                gasLimit: gasLimit,
+                gasPrice: gasPrice,
               },
             });
             console.log('Approval transaction sent:', approveTx);
