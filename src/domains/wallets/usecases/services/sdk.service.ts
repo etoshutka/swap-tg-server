@@ -665,7 +665,7 @@ export class SdkService {
             console.log('Executing ERC20 token swap...');
             txResult = await sdk.erc20.send.transferSignedTransaction({
               to: quoteData.transaction.to,
-              amount: quoteData.sellAmount,
+              amount: amount,
               fromPrivateKey,
               contractAddress: sellTokenAddress,
               digits: decimals,
@@ -678,7 +678,7 @@ export class SdkService {
             console.log('Executing native token swap...');
             txResult = await sdk.transaction.send.transferSignedTransaction({
               to: quoteData.transaction.to,
-              amount: quoteData.sellAmount,
+              amount: amount,
               data: quoteData.transaction.data,
               fromPrivateKey,
               fee: {
