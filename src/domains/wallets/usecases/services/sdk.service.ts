@@ -672,8 +672,8 @@ export class SdkService {
           console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
     
           console.log('Final transaction details:', {
-            to: quoteData.to,
-            value: quoteData.value,
+            to: quoteData.transaction.to,
+            value: quoteData.transaction.value,
             gasLimit: gasLimit.toString(),
             gasPrice: priceData.gasPrice,
             totalGasCost: totalGasCost.toString(),
@@ -683,9 +683,9 @@ export class SdkService {
       
           // Отправка транзакции свопа
           const txResult = await sdk.transaction.send.transferSignedTransaction({
-            to: quoteData.to,
-            amount: quoteData.value,
-            data: quoteData.data,
+            to: quoteData.transaction.to,
+            amount: quoteData.transaction.value,
+            data: quoteData.transaction.data,
             fromPrivateKey,
             fee: {
               gasLimit: gasLimit,
