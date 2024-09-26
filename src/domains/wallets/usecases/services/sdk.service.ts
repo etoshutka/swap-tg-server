@@ -640,7 +640,7 @@ export class SdkService {
         if (sellTokenAddress !== nativeTokenAddress) {
           console.log('Setting approval for ERC20 token...');
           const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
-            amount: quoteData.sellAmount,
+            amount: amount,
             spender: quoteData.transaction.to, // Use the 'to' address from the transaction as the spender
             contractAddress: sellTokenAddress,
             fromPrivateKey,
