@@ -633,18 +633,25 @@ export class SdkService {
         console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
     
      
-          // const approveTx:any = await sdk.erc20.send.approveSignedTransaction({
-          //   amount: sellAmountWei.toString(),
-          //   spender: priceData.issues.allowance.spender,
-          //   contractAddress: sellTokenAddress,
-          //   fromPrivateKey,
-          //   fee: {
-          //     gasLimit: priceData.gas,
-          //     gasPrice: priceData.gasPrice,
-          //   },
-          // });
+        if (sellTokenAddress !== nativeTokenAddress) {
+          console.log('Approving token transfer...');
+          const decimals: number = await sdk.erc20.decimals(sellTokenAddress);
+          const approveTx: any = await sdk.erc20.send.transferSignedTransaction({
+            digits: decimals,
+            amount: amount,
+            to: priceData.issues.allowance.spender,
+            contractAddress: sellTokenAddress,
+            fromPrivateKey,
+            fee: {
+              gasLimit: priceData.gas,
+              gasPrice: priceData.gasPrice,
+            },
+          });
+          console.log('Approval transaction sent:', approveTx);
 
-          // const transaction = await sdk.blockchain.getTransaction(approveTx.txId);
+          const transaction = await sdk.blockchain.getTransaction(approveTx.txId);
+          console.log('Approval transaction confirmed:', transaction);
+        }
 
         const gasLimit = priceData.gas;
         const gasPrice = Math.ceil(Number(gasLimit) / 1_000_000_000).toString();
