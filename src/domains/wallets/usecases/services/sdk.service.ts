@@ -638,20 +638,23 @@ export class SdkService {
     
      
         if (sellTokenAddress !== nativeTokenAddress) {
+          console.log('Setting approval for ERC20 token...');
           const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
-            amount: amount,
-            spender: priceData.issues.allowance.spender,
+            amount: quoteData.sellAmount,
+            spender: quoteData.transaction.to, // Use the 'to' address from the transaction as the spender
             contractAddress: sellTokenAddress,
             fromPrivateKey,
-            fee: isEth? {
-              gasLimit: priceData.gas,
-              gasPrice: priceData.gasPrice,
-            }: undefined,
+            fee: {
+              gasLimit: quoteData.gas,
+              gasPrice: quoteData.gasPrice,
+            },
           });
           console.log('Approval transaction sent:', approveTx);
-
-          const transaction = await sdk.blockchain.getTransaction(approveTx.txId);
-          console.log('Approval transaction confirmed:', transaction);
+    
+          const approvalTransaction = await sdk.blockchain.getTransaction(approveTx.txId);
+          console.log('Approval transaction confirmed:', approvalTransaction);
+        } else {
+          console.log('No approval needed for native token swap.');
         }
 
         const gasLimit = priceData.gas;
