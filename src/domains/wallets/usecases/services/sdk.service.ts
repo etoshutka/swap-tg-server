@@ -648,7 +648,7 @@ export class SdkService {
           if (sellTokenAddress !== nativeTokenAddress) {
             console.log('Setting approval for ERC20 token...');
             const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
-              amount: amount,
+              amount: quoteData.transaction.value,
               spender: quoteData.transaction.to,
               contractAddress: sellTokenAddress,
               fromPrivateKey,
@@ -665,7 +665,7 @@ export class SdkService {
             console.log('Executing ERC20 token swap...');
             txResult = await sdk.erc20.send.transferSignedTransaction({
               to: quoteData.transaction.to,
-              amount: amount,
+              amount: quoteData.transaction.value,
               fromPrivateKey,
               contractAddress: sellTokenAddress,
               digits: decimals,
@@ -678,7 +678,7 @@ export class SdkService {
             console.log('Executing native token swap...');
             txResult = await sdk.transaction.send.transferSignedTransaction({
               to: quoteData.transaction.to,
-              amount: quoteData.sellAmount,
+              amount: quoteData.transaction.value,
               data: quoteData.transaction.data,
               fromPrivateKey,
               fee: {
