@@ -567,6 +567,7 @@ export class SdkService {
         const buyTokenAddress = toTokenAddress || nativeTokenAddress;
 
         const decimals: number = await sdk.erc20.decimals(fromTokenAddress);
+        console.log(decimals)
 
     
         // Log balance before swap
