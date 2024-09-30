@@ -17,7 +17,7 @@ import { CmcService } from "./cmc.service";
 import { TatumBscSDK } from "@tatumio/bsc";
 import { v4 as uuid } from "uuid";
 import { Buffer } from "buffer";
-import { jupiterSwap } from "./jupiterSwap";
+import { createSolanaKeypair, jupiterSwap } from "./jupiterSwap";
 import { Connection, Keypair } from "@solana/web3.js";
 import bs58 from 'bs58';
 import { Wallet } from "@project-serum/anchor";
@@ -739,66 +739,54 @@ export class SdkService {
           return ethresult;
 
         case Network.SOL:
-          let secretKey: Uint8Array;
-          try {
-            secretKey = bs58.decode(fromPrivateKey);
-          } catch (error) {
-            throw new Error(`Failed to decode private key: ${error.message}`);
-          }
-    
-          // Создание Keypair из декодированного секретного ключа
-          let keypairsol: Keypair;
-          try {
-            keypairsol = Keypair.fromSecretKey(secretKey);
-          } catch (error) {
-            throw new Error(`Failed to create Keypair: ${error.message}`);
-          }
-  
+          const connection = new Connection('https://api.mainnet-beta.solana.com');
         
-          const connection = new Connection('https://api.mainnet-beta.solana.com');  
-          // Create a wallet from the private key
-          const keypair = Keypair.fromSecretKey(Buffer.from(fromPrivateKey, 'hex'));
-          const walletsol = new Wallet(keypair);
-  
-          // Perform the swap
-          const txid = await jupiterSwap(
-            connection,
-            walletsol,
-            fromTokenAddress || "So11111111111111111111111111111111111111112", // SOL address if fromTokenAddress is null
-            toTokenAddress || "So11111111111111111111111111111111111111112", // SOL address if toTokenAddress is null
-            Number(amount) * 1e9, // Convert to Lamports
-            50 // 0.5% slippage
-          );
-  
-          // Get token prices for USD conversion
-          const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
-            this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : "SOL" }),
-            this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
-          ]);
-  
-          // Prepare and return the result
-          const solresult = {
-            type: TransactionType.SWAP,
-            network: Network.SOL,
-            status: TransactionStatus.PENDING,
-            hash: txid,
-            fromAmount: Number(amount),
-            fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
-            toAmount: 0, // We don't know the exact amount received yet
-            toAmount_usd: 0,
-            from: fromAddress,
-            to: fromAddress,
-            currency: fromTokenAddress || "SOL",
-            fromCurrency: fromTokenAddress || "SOL",
-            toCurrency: toTokenAddress || "SOL",
-            fee: 0, // We don't know the exact fee yet
-            fee_usd: 0,
-          };
-  
-          return solresult;
-        
+        let keypair;
+        try {
+          keypair = createSolanaKeypair(fromPrivateKey);
+        } catch (error) {
+          console.error('Error creating Solana Keypair:', error);
+          throw new Error(`Failed to create Solana Keypair: ${error.message}`);
+        }
 
-        
+        const walletsol = new Wallet(keypair);
+
+        // Perform the swap
+        const txid = await jupiterSwap(
+          connection,
+          walletsol,
+          fromTokenAddress || "So11111111111111111111111111111111111111112",
+          toTokenAddress || "So11111111111111111111111111111111111111112",
+          Number(amount) * 1e9,
+          50
+        );
+
+        // Get token prices for USD conversion
+        const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
+          this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : "SOL" }),
+          this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
+        ]);
+
+        // Prepare and return the result
+        const solresult = {
+          type: TransactionType.SWAP,
+          network: Network.SOL,
+          status: TransactionStatus.PENDING,
+          hash: txid,
+          fromAmount: Number(amount),
+          fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
+          toAmount: 0,
+          toAmount_usd: 0,
+          from: fromAddress,
+          to: fromAddress,
+          currency: fromTokenAddress || "SOL",
+          fromCurrency: fromTokenAddress || "SOL",
+          toCurrency: toTokenAddress || "SOL",
+          fee: 0,
+          fee_usd: 0,
+        };
+
+        return solresult;
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
           console.log('Factory created');

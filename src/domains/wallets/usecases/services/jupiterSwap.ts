@@ -1,6 +1,7 @@
-import { Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { Connection, Transaction, VersionedTransaction, Keypair } from '@solana/web3.js';
 import fetch from 'cross-fetch';
 import { Wallet } from '@project-serum/anchor';
+import bs58 from 'bs58';
 
 export async function jupiterSwap(
   connection: Connection,
@@ -57,3 +58,32 @@ export async function jupiterSwap(
   console.log(`Swap transaction completed. Transaction ID: ${txid}`);
   return txid;
 }
+
+
+export function createSolanaKeypair(privateKey: string): Keypair {
+    let secretKey: Uint8Array;
+  
+    // Проверяем, является ли privateKey строкой в формате base58
+    if (/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(privateKey)) {
+      // Если да, декодируем его из base58
+      secretKey = bs58.decode(privateKey);
+    } else {
+      // Если нет, пробуем интерпретировать его как hex строку
+      try {
+        secretKey = Buffer.from(privateKey, 'hex');
+      } catch (error) {
+        throw new Error(`Invalid private key format: ${error.message}`);
+      }
+    }
+  
+    // Проверяем длину секретного ключа
+    if (secretKey.length !== 64) {
+      throw new Error(`Invalid secret key length. Expected 64 bytes, got ${secretKey.length}`);
+    }
+  
+    try {
+      return Keypair.fromSecretKey(secretKey);
+    } catch (error) {
+      throw new Error(`Failed to create Keypair: ${error.message}`);
+    }
+  }
