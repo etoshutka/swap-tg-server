@@ -34,7 +34,6 @@ export class SdkService {
   constructor(
     private readonly cmcService: CmcService,
     private readonly configService: ConfigService,
-    private readonly jupiterApi = createJupiterApiClient()
   ) {
     console.log('TATUM_MAINNET_API_KEY:', this.configService.get("TATUM_MAINNET_API_KEY"));
     console.log('TON_API_API_KEY:', this.configService.get("TON_API_API_KEY"));
