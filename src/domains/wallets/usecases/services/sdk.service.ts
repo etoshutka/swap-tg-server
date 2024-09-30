@@ -810,6 +810,7 @@ export class SdkService {
           );
           console.log('Jupiter swap completed. Transaction ID:', txid);
           
+          
           console.log('Fetching transaction details...');
           const txDetails = await this.solSdk.blockchain.getTransaction(txid);
           console.log('Transaction details:', JSON.stringify(txDetails, null, 2));

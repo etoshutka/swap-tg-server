@@ -56,11 +56,25 @@ export async function jupiterSwap(
 
   // Step 6: Confirm the transaction
   const latestBlockHash = await connection.getLatestBlockhash();
-  await connection.confirmTransaction({
-    blockhash: latestBlockHash.blockhash,
-    lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-    signature: txid
-  });
+  try {
+    const confirmation = await connection.confirmTransaction({
+      blockhash: latestBlockHash.blockhash,
+      lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+      signature: txid
+    });
+    
+    if (confirmation.value.err) {
+      throw new Error(`Transaction failed: ${confirmation.value.err}`);
+    }
+    
+    console.log(`Swap transaction completed and confirmed. Transaction ID: ${txid}`);
+    return txid;
+  } catch (error) {
+    console.error('Error confirming transaction:', error);
+    throw new Error(`Failed to confirm transaction: ${error.message}`);
+  }
+
+  
 
   console.log(`Swap transaction completed. Transaction ID: ${txid}`);
   return txid;
