@@ -761,6 +761,7 @@ export class SdkService {
           50
         );
         
+        const txDetails = await this.solSdk.blockchain.getTransaction(txid);
 
         // Get token prices for USD conversion
         const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
@@ -773,21 +774,22 @@ export class SdkService {
           type: TransactionType.SWAP,
           network: Network.SOL,
           status: TransactionStatus.PENDING,
-          hash: txid,
+          hash: txDetails.transaction.signatures[0],
           fromAmount: Number(amount),
           fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
-          toAmount: 0,
+          toAmount: 0, // Нужно вычислить из результата транзакции, если возможно
           toAmount_usd: 0,
           from: fromAddress,
           to: fromAddress,
           currency: fromTokenAddress || "SOL",
           fromCurrency: fromTokenAddress || "SOL",
           toCurrency: toTokenAddress || "SOL",
-          fee: 0,
-          fee_usd: 0,
+          fee:  0,
+          fee_usd: 0
         };
-
+    
         return solresult;
+
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
           console.log('Factory created');
