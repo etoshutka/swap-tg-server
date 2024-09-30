@@ -1,7 +1,7 @@
 import { Address, beginCell, Cell, internal, OpenedContract, Sender, SenderArguments, SendMode, toNano, TonClient, WalletContractV5R1 } from "@ton/ton";
 import { networkNativeSymbol, networkSymbol } from "../../domain/consts/network.const";
 import { TransactionStatus, TransactionType } from "../../domain/interfaces/transaction.interface";
-import { Ethereum, Network as TatumNetwork, TatumSDK } from "@tatumio/tatum";
+import { Ethereum, Network as TatumNetwork, TatumSDK, Solana } from "@tatumio/tatum";
 import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "@ton/crypto";
 import { GetTokenPriceResult } from "../interfaces/cmc.interface";
 import { Network } from "../../domain/interfaces/wallet.interface";
@@ -15,8 +15,12 @@ import { ConfigService } from "@nestjs/config";
 import { TatumEthSDK } from "@tatumio/eth";
 import { CmcService } from "./cmc.service";
 import { TatumBscSDK } from "@tatumio/bsc";
+import { createJupiterApiClient, QuoteGetRequest, QuoteResponse, SwapResponse } from "@jup-ag/api";
 import { v4 as uuid } from "uuid";
 import { Buffer } from "buffer";
+import { jupiterSwap } from "./jupiterSwap";
+import { Connection, Keypair } from "@solana/web3.js";
+import { Wallet } from "@project-serum/anchor";
 
 @Injectable()
 export class SdkService {
@@ -30,6 +34,7 @@ export class SdkService {
   constructor(
     private readonly cmcService: CmcService,
     private readonly configService: ConfigService,
+    private readonly jupiterApi = createJupiterApiClient()
   ) {
     console.log('TATUM_MAINNET_API_KEY:', this.configService.get("TATUM_MAINNET_API_KEY"));
     console.log('TON_API_API_KEY:', this.configService.get("TON_API_API_KEY"));
@@ -734,6 +739,54 @@ export class SdkService {
       
           return ethresult;
 
+        case Network.SOL:
+
+  
+        
+          const connection = new Connection('https://api.mainnet-beta.solana.com');  
+          // Create a wallet from the private key
+          const keypair = Keypair.fromSecretKey(Buffer.from(fromPrivateKey, 'hex'));
+          const walletsol = new Wallet(keypair);
+  
+          // Perform the swap
+          const txid = await jupiterSwap(
+            connection,
+            walletsol,
+            fromTokenAddress || "So11111111111111111111111111111111111111112", // SOL address if fromTokenAddress is null
+            toTokenAddress || "So11111111111111111111111111111111111111112", // SOL address if toTokenAddress is null
+            Number(amount) * 1e9, // Convert to Lamports
+            50 // 0.5% slippage
+          );
+  
+          // Get token prices for USD conversion
+          const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
+            this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : "SOL" }),
+            this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
+          ]);
+  
+          // Prepare and return the result
+          const solresult = {
+            type: TransactionType.SWAP,
+            network: Network.SOL,
+            status: TransactionStatus.PENDING,
+            hash: txid,
+            fromAmount: Number(amount),
+            fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
+            toAmount: 0, // We don't know the exact amount received yet
+            toAmount_usd: 0,
+            from: fromAddress,
+            to: fromAddress,
+            currency: fromTokenAddress || "SOL",
+            fromCurrency: fromTokenAddress || "SOL",
+            toCurrency: toTokenAddress || "SOL",
+            fee: 0, // We don't know the exact fee yet
+            fee_usd: 0,
+          };
+  
+          return solresult;
+        
+
+        
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
           console.log('Factory created');
@@ -874,6 +927,28 @@ export class SdkService {
       console.error('Error in swapTokens:', e);
       this.logger("swapTokens()").error(`Failed to swap tokens: ${e.message}`);
       throw e;
+    }
+  }
+
+  async estimateSwapFee(params: types.SwapTokensParams): Promise<number> {
+    // Логика оценки комиссии в зависимости от сети
+    switch (params.network) {
+      case Network.ETH:
+      case Network.BSC:
+        const gasInfo = await this.ethSdk.blockchain.estimateGas({
+          to: params.toTokenAddress,
+          from: params.fromAddress,
+          amount: params.amount,
+        });
+        return Number(gasInfo.gasPrice) * Number(gasInfo.gasLimit) / 1e18;
+      case Network.SOL:
+        // Оценка комиссии для Solana
+        return 0.000005;
+      case Network.TON:
+        // Оценка комиссии для TON
+        return 0.05; 
+      default:
+        return 0;
     }
   }
 }
