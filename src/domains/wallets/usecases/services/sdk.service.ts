@@ -739,66 +739,110 @@ export class SdkService {
           return ethresult;
 
         case Network.SOL:
-          const connection = new Connection('https://api.mainnet-beta.solana.com');
-    console.log('Solana connection created');
-    
-    let keypair;
-    try {
-      keypair = createSolanaKeypair(fromPrivateKey);
-      console.log('Solana Keypair created successfully');
-    } catch (error) {
-      console.error('Error creating Solana Keypair:', error);
-      throw new Error(`Failed to create Solana Keypair: ${error.message}`);
-    }
+          const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/rpc`;
+          const headers = {
+            'accept': 'application/json',
+            'content-type': 'application/json',
+            'x-api-key': this.configService.get("TATUM_MAINNET_API_KEY")
+          };
 
-    const walletsol = new Wallet(keypair);
-    console.log('Wallet created');
+          // Функция для выполнения RPC-запросов
+          const tatumRpcRequest = async (method: string, params: any[] = []) => {
+            const response = await fetch(tatumRpcUrl, {
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: method,
+                params: params
+              })
+            });
 
-    // Perform the swap
-    console.log('Initiating Jupiter swap...');
-    const txid = await jupiterSwap(
-      connection,
-      walletsol,
-      fromTokenAddress || "So11111111111111111111111111111111111111112",
-      toTokenAddress || "So11111111111111111111111111111111111111112",
-      Number(amount),
-      50
-    );
-    console.log('Jupiter swap completed. Transaction ID:', txid);
-    
-    console.log('Fetching transaction details...');
-    const txDetails = await this.solSdk.blockchain.getTransaction(txid);
-    console.log('Transaction details:', JSON.stringify(txDetails, null, 2));
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-    // Get token prices for USD conversion
-    console.log('Fetching token prices...');
-    const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
-      this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : "SOL" }),
-      this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
-    ]);
-    console.log('Token prices:', { fromTokenPriceSol, toTokenPriceSol });
+            const data = await response.json();
+            if (data.error) {
+              throw new Error(`RPC error: ${data.error.message}`);
+            }
 
-    // Prepare and return the result
-    const solresult = {
-      type: TransactionType.SWAP,
-      network: Network.SOL,
-      status: TransactionStatus.PENDING,
-      hash: txDetails.transaction.signatures[0],
-      fromAmount: Number(amount),
-      fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
-      toAmount: 0, // Нужно вычислить из результата транзакции, если возможно
-      toAmount_usd: 0,
-      from: fromAddress,
-      to: fromAddress,
-      currency: fromTokenAddress || "SOL",
-      fromCurrency: fromTokenAddress || "SOL",
-      toCurrency: toTokenAddress || "SOL",
-      fee: 0,
-      fee_usd: 0
-    };
-    
-    console.log('Swap result:', JSON.stringify(solresult, null, 2));
-    return solresult;
+            return data.result;
+          };
+
+        // Создаем соединение с использованием нашей функции RPC-запросов
+        const connection = new Connection(tatumRpcUrl, {
+          async fetchMiddleware(url, options, fetchImpl) {
+            // Игнорируем url, так как мы всегда используем tatumRpcUrl
+            const response = await fetch(tatumRpcUrl, {
+              method: 'POST',
+              headers: headers,
+              body: options.body
+            });
+            return response;
+          }
+        });
+
+        console.log('Solana connection created');
+          
+          let keypair;
+          try {
+            keypair = createSolanaKeypair(fromPrivateKey);
+            console.log('Solana Keypair created successfully');
+          } catch (error) {
+            console.error('Error creating Solana Keypair:', error);
+            throw new Error(`Failed to create Solana Keypair: ${error.message}`);
+          }
+
+          const walletsol = new Wallet(keypair);
+          console.log('Wallet created');
+
+          // Perform the swap
+          console.log('Initiating Jupiter swap...');
+          const txid = await jupiterSwap(
+            connection,
+            walletsol,
+            fromTokenAddress || "So11111111111111111111111111111111111111112",
+            toTokenAddress || "So11111111111111111111111111111111111111112",
+            Number(amount),
+            50
+          );
+          console.log('Jupiter swap completed. Transaction ID:', txid);
+          
+          console.log('Fetching transaction details...');
+          const txDetails = await this.solSdk.blockchain.getTransaction(txid);
+          console.log('Transaction details:', JSON.stringify(txDetails, null, 2));
+
+          // Get token prices for USD conversion
+          console.log('Fetching token prices...');
+          const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
+            this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : "SOL" }),
+            this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
+          ]);
+          console.log('Token prices:', { fromTokenPriceSol, toTokenPriceSol });
+
+          // Prepare and return the result
+          const solresult = {
+            type: TransactionType.SWAP,
+            network: Network.SOL,
+            status: TransactionStatus.PENDING,
+            hash: txDetails.transaction.signatures[0],
+            fromAmount: Number(amount),
+            fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
+            toAmount: 0, // Нужно вычислить из результата транзакции, если возможно
+            toAmount_usd: 0,
+            from: fromAddress,
+            to: fromAddress,
+            currency: fromTokenAddress || "SOL",
+            fromCurrency: fromTokenAddress || "SOL",
+            toCurrency: toTokenAddress || "SOL",
+            fee: 0,
+            fee_usd: 0
+          };
+          
+          console.log('Swap result:', JSON.stringify(solresult, null, 2));
+          return solresult;
 
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));

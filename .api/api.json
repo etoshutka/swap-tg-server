@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "apis": [
+    {
+      "identifier": "tatumdocs",
+      "source": "@tatumdocs/v1.2#1z24xu6fm0nv4q1w",
+      "integrity": "sha512-pDNcRADvHxcWHUgkgJlYJh6HrWsU20cdK8QTJJ45KTOWtWAmAe7J2r5z5zF3RKKDJO6gkobai/zVBtfqVoauEA==",
+      "installerVersion": "6.1.2"
+    }
+  ]
+}
