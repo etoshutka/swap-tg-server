@@ -13,7 +13,6 @@ export async function jupiterSwap(
   amount: number,
   slippageBps: number
 ): Promise<string> {
-  // Определяем множитель в зависимости от входного токена
   const multiplier = inputMint === SOL_MINT ? 1e9 : 1e6;
   const adjustedAmount = Math.floor(amount * multiplier);
 
@@ -34,7 +33,9 @@ export async function jupiterSwap(
       body: JSON.stringify({
         quoteResponse,
         userPublicKey: wallet.publicKey.toString(),
-        wrapAndUnwrapSol: true
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 'auto'
       })
     })
   ).json();
