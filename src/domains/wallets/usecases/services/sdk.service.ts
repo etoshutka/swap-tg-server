@@ -739,7 +739,7 @@ export class SdkService {
           return ethresult;
 
         case Network.SOL:
-        const connection = new Connection('solana-mainnet.gateway.tatum.io')//('https://api.mainnet-beta.solana.com');
+        const connection = new Connection('https://api.mainnet-beta.solana.com')//('solana-mainnet.gateway.tatum.io')('https://api.mainnet-beta.solana.com');
         
         let keypair;
         try {
