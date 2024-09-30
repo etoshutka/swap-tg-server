@@ -757,7 +757,7 @@ export class SdkService {
           walletsol,
           fromTokenAddress || "So11111111111111111111111111111111111111112",
           toTokenAddress || "So11111111111111111111111111111111111111112",
-          Number(amount),
+          Number(amount) * 1e6,
           50
         );
 
