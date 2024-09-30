@@ -46,6 +46,7 @@
     "@ton/crypto": "^3.3.0",
     "@ton/ton": "^15.0.0",
     "@types/passport-jwt": "^4.0.1",
+    "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",

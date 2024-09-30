@@ -15,11 +15,11 @@ import { ConfigService } from "@nestjs/config";
 import { TatumEthSDK } from "@tatumio/eth";
 import { CmcService } from "./cmc.service";
 import { TatumBscSDK } from "@tatumio/bsc";
-import { createJupiterApiClient, QuoteGetRequest, QuoteResponse, SwapResponse } from "@jup-ag/api";
 import { v4 as uuid } from "uuid";
 import { Buffer } from "buffer";
 import { jupiterSwap } from "./jupiterSwap";
 import { Connection, Keypair } from "@solana/web3.js";
+import bs58 from 'bs58';
 import { Wallet } from "@project-serum/anchor";
 
 @Injectable()
@@ -739,7 +739,20 @@ export class SdkService {
           return ethresult;
 
         case Network.SOL:
-
+          let secretKey: Uint8Array;
+          try {
+            secretKey = bs58.decode(fromPrivateKey);
+          } catch (error) {
+            throw new Error(`Failed to decode private key: ${error.message}`);
+          }
+    
+          // Создание Keypair из декодированного секретного ключа
+          let keypairsol: Keypair;
+          try {
+            keypairsol = Keypair.fromSecretKey(secretKey);
+          } catch (error) {
+            throw new Error(`Failed to create Keypair: ${error.message}`);
+          }
   
         
           const connection = new Connection('https://api.mainnet-beta.solana.com');  
