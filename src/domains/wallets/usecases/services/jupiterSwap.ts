@@ -47,6 +47,8 @@ export async function jupiterSwap(
   // Step 4: Sign the transaction
   transaction.sign([wallet.payer]);
 
+  const latestBlockHash = await connection.getLatestBlockhash();
+
   // Step 5: Execute the transaction
   const rawTransaction = transaction.serialize()
   const txid = await connection.sendRawTransaction(rawTransaction, {
@@ -55,7 +57,6 @@ export async function jupiterSwap(
   });
 
   // Step 6: Confirm the transaction
-  const latestBlockHash = await connection.getLatestBlockhash();
   try {
     const confirmation = await connection.confirmTransaction({
       blockhash: latestBlockHash.blockhash,
@@ -73,11 +74,6 @@ export async function jupiterSwap(
     console.error('Error confirming transaction:', error);
     throw new Error(`Failed to confirm transaction: ${error.message}`);
   }
-
-  
-
-  console.log(`Swap transaction completed. Transaction ID: ${txid}`);
-  return txid;
 }
 
 export function createSolanaKeypair(privateKey: string): Keypair {
