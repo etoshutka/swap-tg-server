@@ -76,6 +76,7 @@ export async function jupiterSwap(
       console.log(`Transaction sent. ID: ${txid}`);
   
       console.log('Waiting for transaction confirmation');
+      await connection.confirmTransaction(txid);
     //   const confirmation = await connection.confirmTransaction({
     //     blockhash: latestBlockHash.blockhash,
     //     lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
