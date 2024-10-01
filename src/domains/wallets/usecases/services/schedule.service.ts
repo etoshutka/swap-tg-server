@@ -63,9 +63,9 @@ export class ScheduleService {
   @Cron(CronExpression.EVERY_10_SECONDS)
 async transferProcessing(): Promise<void> {
   try {
-    console.log('Starting transferProcessing');
+    //console.log('Starting transferProcessing');
     const transactions: TransactionModel[] = await this.transactionRepo.find({ where: { type: TransactionType.TRANSFER, status: TransactionStatus.PENDING } });
-    console.log(`Found ${transactions.length} pending transactions`);
+    //console.log(`Found ${transactions.length} pending transactions`);
 
     for (const t of transactions) {
       const NETWORK: Network = t.network;
