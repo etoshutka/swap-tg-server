@@ -75,18 +75,18 @@ async transferProcessing(): Promise<void> {
         switch (t.network) {
           case Network.ETH:
           case Network.BSC:
-            console.log(`Processing ${t.network} transaction`);
+            //console.log(`Processing ${t.network} transaction`);
             const isEth: boolean = NETWORK === Network.ETH;
             const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
 
             let transaction = await sdk.blockchain.getTransaction(t.hash);
-            console.log('Initial transaction details:', JSON.stringify(transaction, null, 2));
+            //console.log('Initial transaction details:', JSON.stringify(transaction, null, 2));
             let isTransactionEnded: boolean = false;
             let attempts = 0;
 
             while (!isTransactionEnded && attempts < 5) {
               attempts++;
-              console.log(`Attempt ${attempts} to get transaction details`);
+             // console.log(`Attempt ${attempts} to get transaction details`);
               
               if (transaction?.gasUsed) {
                 isTransactionEnded = true;
@@ -295,13 +295,13 @@ async transferProcessing(): Promise<void> {
 @Cron(CronExpression.EVERY_10_SECONDS)
 async swapProcessing(): Promise<void> {
   try {
-    console.log('Starting swapProcessing');
+   // console.log('Starting swapProcessing');
     const transactions: TransactionModel[] = await this.transactionRepo.find({ where: { type: TransactionType.SWAP, status: TransactionStatus.PENDING } });
-    console.log(`Found ${transactions.length} pending swap transactions`);
+    //console.log(`Found ${transactions.length} pending swap transactions`);
 
     for (const t of transactions) {
       const NETWORK: Network = t.network;
-      console.log(`Processing swap transaction: ${t.hash} on network: ${NETWORK}`);
+      //console.log(`Processing swap transaction: ${t.hash} on network: ${NETWORK}`);
       
       try {
         switch (t.network) {
@@ -312,7 +312,7 @@ async swapProcessing(): Promise<void> {
             const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
 
             let transaction = await sdk.blockchain.getTransaction(t.hash);
-            console.log('Initial swap details:', JSON.stringify(transaction, null, 2));
+            //console.log('Initial swap details:', JSON.stringify(transaction, null, 2));
             let isSwapEnded: boolean = false;
             let attempts = 0;
 
