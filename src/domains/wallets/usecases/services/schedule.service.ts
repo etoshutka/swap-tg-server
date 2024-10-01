@@ -185,49 +185,64 @@ async transferProcessing(): Promise<void> {
             console.log(`Is Jetton transfer: ${isJettonTransfer}`);
             const transferId: string = isJettonTransfer ? t.hash.split(":")[0] : t.hash;
             console.log(`Transfer ID: ${transferId}`);
-        
+
             let isTonTransactionEnded: boolean = false;
             let tonTransactionResult: Transaction | undefined;
             const tonTransactionResults: Transaction[] = [];
-        
+            const MAX_ATTEMPTS = 30; // Максимальное количество попыток (5 минут при 10-секундном интервале)
+
             if (!isJettonTransfer) {
               console.log('Processing non-Jetton TON transfer');
-              while (!isTonTransactionEnded) {
+              while (!isTonTransactionEnded && attempts < MAX_ATTEMPTS) {
+                attempts++;
                 await new Promise((resolve) => setTimeout(resolve, 10000));
                 const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
                 console.log(`TON: Retrieved ${walletTransactions.transactions.length} transactions for address ${t.from}`);
                 const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => tx.outMsgs?.[0]?.decodedBody?.text === transferId);
-        
+
                 if (transaction) {
                   console.log('TON: Found matching transaction:', JSON.stringify(transaction, null, 2));
                   tonTransactionResult = transaction;
                   isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
                   console.log(`TON: Transaction ended: ${isTonTransactionEnded}`);
                 } else {
-                  console.log('TON: No matching transaction found, continuing search...');
+                  console.log(`TON: No matching transaction found, continuing search... (Attempt ${attempts}/${MAX_ATTEMPTS})`);
                 }
               }
             } else {
               console.log('Processing Jetton TON transfer');
-              while (!isTonTransactionEnded) {
+              while (!isTonTransactionEnded && attempts < MAX_ATTEMPTS) {
+                attempts++;
                 await new Promise((resolve) => setTimeout(resolve, 10000));
                 const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
                 console.log(`TON Jetton: Retrieved ${walletTransactions.transactions.length} transactions for address ${t.from}`);
                 const transaction: Transaction | undefined = walletTransactions.transactions.find((t) => JSON.stringify(t).includes(String(transferId)));
-        
+
                 if (transaction && tonTransactionResults.length < 2 && (transaction.success || transaction.destroyed || transaction.aborted)) {
                   console.log('TON Jetton: Found matching transaction:', JSON.stringify(transaction, null, 2));
                   tonTransactionResults.push(transaction);
                   console.log(`TON Jetton: Transaction count: ${tonTransactionResults.length}`);
                 }
-        
+
                 if (tonTransactionResults.length === 2) {
                   isTonTransactionEnded = true;
                   console.log('TON Jetton: Both transactions found');
+                } else {
+                  console.log(`TON Jetton: Continuing search... (Attempt ${attempts}/${MAX_ATTEMPTS})`);
                 }
               }
             }
-        
+
+            if (attempts >= MAX_ATTEMPTS) {
+              console.log(`TON: Max attempts reached. Transaction not found or incomplete.`);
+              await this.transactionRepo.update(
+                { id: t.id },
+                { status: TransactionStatus.PENDING }
+              );
+              break; // Выходим из обработки этой транзакции
+            }
+
+            // Остальной код остается без изменений
             let txFee: number;
             if (isJettonTransfer) {
               txFee = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
@@ -239,15 +254,15 @@ async transferProcessing(): Promise<void> {
               console.error("TON: Transaction result is undefined");
               throw new Error("Transaction result is undefined");
             }
-        
+
             const txFeeUsd: number = txFee * tonPrice;
             console.log(`TON: Transaction fee in USD: ${txFeeUsd}`);
-        
+
             const txHash: string = isJettonTransfer 
               ? tonTransactionResults[tonTransactionResults.length - 1].hash 
               : tonTransactionResult?.hash || '';
             console.log(`TON: Transaction hash: ${txHash}`);
-        
+
             const txStatus: TransactionStatus = isJettonTransfer
               ? tonTransactionResults[tonTransactionResults.length - 1].success
                 ? TransactionStatus.SUCCESS
@@ -256,7 +271,7 @@ async transferProcessing(): Promise<void> {
                 ? TransactionStatus.SUCCESS
                 : TransactionStatus.FAILED;
             console.log(`TON: Transaction status: ${txStatus}`);
-        
+
             console.log('TON: Updating transaction in database:', {
               id: t.id,
               fee: txFee,
@@ -264,7 +279,7 @@ async transferProcessing(): Promise<void> {
               status: txStatus,
               fee_usd: txFeeUsd
             });
-        
+
             await this.transactionRepo.update(
               { id: t.id }, 
               { 
