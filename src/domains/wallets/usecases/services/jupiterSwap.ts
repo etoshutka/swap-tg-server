@@ -14,7 +14,7 @@ export async function jupiterSwap(
     slippageBps: number
   ): Promise<{ txid: string; status: 'success' | 'error'; message: string }> {
     try {
-      const multiplier = inputMint === SOL_MINT ? 10e9 : 10e6;
+      const multiplier = inputMint === SOL_MINT ? 10**9 : 10**6;
       const adjustedAmount = Math.floor(amount * multiplier);
   
       console.log(`Requesting quote for ${adjustedAmount} ${inputMint} to ${outputMint}`);
