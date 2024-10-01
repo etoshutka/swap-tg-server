@@ -739,7 +739,7 @@ export class SdkService {
           return ethresult;
 
         case Network.SOL:
-          const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/algorand-mainnet-algod/xApiKey/rpcPath`;
+          const tatumRpcUrl = `"https://api.tatum.io/v3/blockchain/node/solana-mainnet/`;
           const headers = {
             'accept': 'application/json',
             'content-type': 'application/json',
