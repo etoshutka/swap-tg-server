@@ -806,7 +806,7 @@ export class SdkService {
             fromTokenAddress || "So11111111111111111111111111111111111111112",
             toTokenAddress || "So11111111111111111111111111111111111111112",
             Number(amount),
-            75
+            500
           );
           console.log('Jupiter swap completed. Transaction ID:', txid);
           
