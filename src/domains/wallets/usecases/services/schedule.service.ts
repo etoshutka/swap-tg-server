@@ -307,7 +307,7 @@ async swapProcessing(): Promise<void> {
         switch (t.network) {
           case Network.ETH:
           case Network.BSC:
-            console.log(`Processing ${t.network} swap`);
+            //console.log(`Processing ${t.network} swap`);
             const isEth: boolean = NETWORK === Network.ETH;
             const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
 
