@@ -11,7 +11,7 @@ export async function jupiterSwap(
     inputMint: string,
     outputMint: string,
     amount: number,
-    slippageBps: number
+    //slippageBps: number
   ): Promise<{ txid: string; status: 'success' | 'error'; message: string }> {
     try {
       const multiplier = inputMint === SOL_MINT ? 10**9 : 10**6;
@@ -19,14 +19,14 @@ export async function jupiterSwap(
   
       console.log(`Requesting quote for ${adjustedAmount} ${inputMint} to ${outputMint}`);
       const quoteResponse = await (
-        await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
+        await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}`) //&slippageBps=${slippageBps}
       ).json();
 
 
   
       console.log('Quote received:', quoteResponse);
 
-      console.log('Jupiter quote request URL:', `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`);
+      console.log('Jupiter quote request URL:', `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}`);
   
       console.log('Requesting swap transaction');
 
@@ -50,7 +50,7 @@ export async function jupiterSwap(
             wrapAndUnwrapSol: true,
             dynamicComputeUnitLimit: true,
             prioritizationFeeLamports: 'auto',
-            // dynamicSlippage: { "maxBps": 300 },
+            dynamicSlippage: { "maxBps": 300 },
           })
         })
       ).json();

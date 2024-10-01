@@ -811,15 +811,10 @@ export class SdkService {
             fromTokenAddress || "So11111111111111111111111111111111111111112",
             toTokenAddress || "So11111111111111111111111111111111111111112",
             Number(amount),
-            300
           );
           console.log('Jupiter swap completed. Transaction ID:', txid);
           
           
-          console.log('Fetching transaction details...');
-          //const txDetails = await txid.txid;
-          const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
-          console.log('Transaction details:', JSON.stringify(txDetails, null, 2));
 
           // Get token prices for USD conversion
           console.log('Fetching token prices...');
@@ -828,6 +823,11 @@ export class SdkService {
             this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
           ]);
           console.log('Token prices:', { fromTokenPriceSol, toTokenPriceSol });
+
+          console.log('Fetching transaction details...');
+          //const txDetails = await txid.txid;
+          const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
+          console.log('Transaction details:', JSON.stringify(txDetails, null, 2));
 
           // Prepare and return the result
           const solresult = {
