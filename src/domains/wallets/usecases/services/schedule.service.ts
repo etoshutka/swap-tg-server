@@ -61,70 +61,102 @@ export class ScheduleService {
    * @desc Transfer processing
    */
   @Cron(CronExpression.EVERY_10_SECONDS)
-  async transferProcessing(): Promise<void> {
-    try {
-      const transactions: TransactionModel[] = await this.transactionRepo.find({ where: { type: TransactionType.TRANSFER, status: TransactionStatus.PENDING } });
-      console.log(`Processing ${transactions.length} pending transactions`);
-      for (const t of transactions) {
-        const NETWORK: Network = t.network;
-        console.log(`Processing transaction: ${t.hash} on network: ${NETWORK}`);
-        
+async transferProcessing(): Promise<void> {
+  try {
+    console.log('Starting transferProcessing');
+    const transactions: TransactionModel[] = await this.transactionRepo.find({ where: { type: TransactionType.TRANSFER, status: TransactionStatus.PENDING } });
+    console.log(`Found ${transactions.length} pending transactions`);
+
+    for (const t of transactions) {
+      const NETWORK: Network = t.network;
+      console.log(`Processing transaction: ${t.hash} on network: ${NETWORK}`);
+      
+      try {
         switch (t.network) {
           case Network.ETH:
           case Network.BSC:
+            console.log(`Processing ${t.network} transaction`);
             const isEth: boolean = NETWORK === Network.ETH;
             const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
 
             let transaction = await sdk.blockchain.getTransaction(t.hash);
+            console.log('Initial transaction details:', JSON.stringify(transaction, null, 2));
             let isTransactionEnded: boolean = false;
-
-            while (!isTransactionEnded) {
-              if (!!transaction?.gasUsed) {
-                isTransactionEnded = true;
-              } else {
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-                transaction = await sdk.blockchain.getTransaction(t.hash);
-              }
-            }
-
-            const transactionFee: number = (Number(transaction.gasPrice) / 1_000_000_000) * (Number(transaction.gasUsed) / 1_000_000_000);
-            const nativeTokenPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ symbol: networkNativeSymbol[NETWORK] }).catch();
-            const transactionStatus: TransactionStatus = transaction.status ? TransactionStatus.SUCCESS : TransactionStatus.FAILED;
-
-            await this.transactionRepo.update({ id: t.id }, { fee: transactionFee, status: transactionStatus, fee_usd: transactionFee * nativeTokenPrice.price });
-            break;
-          case Network.SOL:
-            console.log('Processing Solana transaction');
-            const solPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ symbol: "SOL" }).catch();
-            console.log('SOL price:', solPrice);
-            
-            let solTransaction = await this.solSdk.blockchain.getTransaction(t.hash);
-            console.log('Initial transaction details:', JSON.stringify(solTransaction, null, 2));
-            
-            let isSolTransactionEnded: boolean = false;
             let attempts = 0;
-  
-            while (!isSolTransactionEnded && attempts < 5) {
+
+            while (!isTransactionEnded && attempts < 5) {
               attempts++;
               console.log(`Attempt ${attempts} to get transaction details`);
               
-              if (solTransaction?.meta?.fee) {
-                isSolTransactionEnded = true;
+              if (transaction?.gasUsed) {
+                isTransactionEnded = true;
                 console.log('Transaction details obtained successfully');
               } else {
                 console.log('Transaction details not available, waiting...');
                 await new Promise((resolve) => setTimeout(resolve, 10000));
+                transaction = await sdk.blockchain.getTransaction(t.hash);
+                console.log('Updated transaction details:', JSON.stringify(transaction, null, 2));
+              }
+            }
+
+            if (isTransactionEnded) {
+              const transactionFee: number = (Number(transaction.gasPrice) / 1_000_000_000) * (Number(transaction.gasUsed) / 1_000_000_000);
+              console.log(`Transaction fee: ${transactionFee}`);
+              
+              const nativeTokenPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ symbol: networkNativeSymbol[NETWORK] }).catch(error => {
+                console.error('Error getting token price:', error);
+                return { price: 0, price_change_percentage: 0  };
+              });
+              console.log(`Native token price: ${nativeTokenPrice.price}`);
+              
+              const transactionStatus: TransactionStatus = transaction.status ? TransactionStatus.SUCCESS : TransactionStatus.FAILED;
+              console.log(`Transaction status: ${transactionStatus}`);
+
+              await this.transactionRepo.update({ id: t.id }, { fee: transactionFee, status: transactionStatus, fee_usd: transactionFee * nativeTokenPrice.price });
+              console.log(`Transaction ${t.id} updated successfully`);
+            } else {
+              console.log(`Failed to get transaction details for ${t.id} after multiple attempts`);
+            }
+            break;
+
+          case Network.SOL:
+            console.log('Processing Solana transaction');
+            const solPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ symbol: "SOL" }).catch(error => {
+              console.error('Error getting SOL price:', error);
+              return { price: 0, price_change_percentage: 0 };
+            });
+            console.log('SOL price:', solPrice);
+            
+            let solTransaction = await this.solSdk.blockchain.getTransaction(t.hash);
+            console.log('Initial Solana transaction details:', JSON.stringify(solTransaction, null, 2));
+            
+            let isSolTransactionEnded: boolean = false;
+            let solAttempts = 0;
+  
+            while (!isSolTransactionEnded && solAttempts < 5) {
+              solAttempts++;
+              console.log(`Solana: Attempt ${solAttempts} to get transaction details`);
+              
+              if (solTransaction?.meta?.fee) {
+                isSolTransactionEnded = true;
+                console.log('Solana: Transaction details obtained successfully');
+              } else {
+                console.log('Solana: Transaction details not available, waiting...');
+                await new Promise((resolve) => setTimeout(resolve, 10000));
                 solTransaction = await this.solSdk.blockchain.getTransaction(t.hash);
-                console.log('Updated transaction details:', JSON.stringify(solTransaction, null, 2));
+                console.log('Updated Solana transaction details:', JSON.stringify(solTransaction, null, 2));
               }
             }
   
             if (isSolTransactionEnded) {
               const fee = solTransaction.meta.fee / 1_000_000_000;
+              console.log(`Solana: Transaction fee: ${fee}`);
               const status = solTransaction.meta.err ? TransactionStatus.FAILED : TransactionStatus.SUCCESS;
+              console.log(`Solana: Transaction status: ${status}`);
               const fee_usd = fee * solPrice.price;
+              console.log(`Solana: Transaction fee in USD: ${fee_usd}`);
   
-              console.log('Updating transaction in database:', {
+              console.log('Solana: Updating transaction in database:', {
                 id: t.id,
                 fee,
                 status,
@@ -139,84 +171,119 @@ export class ScheduleService {
                   fee_usd,
                 },
               );
-              console.log('Transaction updated successfully');
+              console.log('Solana: Transaction updated successfully');
             } else {
-              console.log('Failed to get transaction details after multiple attempts');
+              console.log('Solana: Failed to get transaction details after multiple attempts');
             }
             break;
+
           case Network.TON:
-          const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
-          const isJettonTransfer: boolean = t.hash.includes("jetton");
-          const transferId: string = isJettonTransfer ? t.hash.split(":")[0] : t.hash;
+            console.log('Processing TON transaction');
+            const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
+            console.log(`TON price: ${tonPrice}`);
+            const isJettonTransfer: boolean = t.hash.includes("jetton");
+            console.log(`Is Jetton transfer: ${isJettonTransfer}`);
+            const transferId: string = isJettonTransfer ? t.hash.split(":")[0] : t.hash;
+            console.log(`Transfer ID: ${transferId}`);
         
-          let isTonTransactionEnded: boolean = false;
-          let tonTransactionResult: Transaction | undefined;
-          const tonTransactionResults: Transaction[] = [];
+            let isTonTransactionEnded: boolean = false;
+            let tonTransactionResult: Transaction | undefined;
+            const tonTransactionResults: Transaction[] = [];
         
-          if (!isJettonTransfer) {
-            while (!isTonTransactionEnded) {
-              await new Promise((resolve) => setTimeout(resolve, 10000));
-              const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
-              const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => tx.outMsgs?.[0]?.decodedBody?.text === transferId);
+            if (!isJettonTransfer) {
+              console.log('Processing non-Jetton TON transfer');
+              while (!isTonTransactionEnded) {
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+                const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+                console.log(`TON: Retrieved ${walletTransactions.transactions.length} transactions for address ${t.from}`);
+                const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => tx.outMsgs?.[0]?.decodedBody?.text === transferId);
         
-              if (transaction) {
-                tonTransactionResult = transaction;
-                isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
+                if (transaction) {
+                  console.log('TON: Found matching transaction:', JSON.stringify(transaction, null, 2));
+                  tonTransactionResult = transaction;
+                  isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
+                  console.log(`TON: Transaction ended: ${isTonTransactionEnded}`);
+                } else {
+                  console.log('TON: No matching transaction found, continuing search...');
+                }
+              }
+            } else {
+              console.log('Processing Jetton TON transfer');
+              while (!isTonTransactionEnded) {
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+                const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+                console.log(`TON Jetton: Retrieved ${walletTransactions.transactions.length} transactions for address ${t.from}`);
+                const transaction: Transaction | undefined = walletTransactions.transactions.find((t) => JSON.stringify(t).includes(String(transferId)));
+        
+                if (transaction && tonTransactionResults.length < 2 && (transaction.success || transaction.destroyed || transaction.aborted)) {
+                  console.log('TON Jetton: Found matching transaction:', JSON.stringify(transaction, null, 2));
+                  tonTransactionResults.push(transaction);
+                  console.log(`TON Jetton: Transaction count: ${tonTransactionResults.length}`);
+                }
+        
+                if (tonTransactionResults.length === 2) {
+                  isTonTransactionEnded = true;
+                  console.log('TON Jetton: Both transactions found');
+                }
               }
             }
-          } else {
-            while (!isTonTransactionEnded) {
-              await new Promise((resolve) => setTimeout(resolve, 10000));
-              const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
-              const transaction: Transaction | undefined = walletTransactions.transactions.find((t) => JSON.stringify(t).includes(String(transferId)));
         
-              if (transaction && tonTransactionResults.length < 2 && (transaction.success || transaction.destroyed || transaction.aborted)) {
-                tonTransactionResults.push(transaction);
-              }
-        
-              if (tonTransactionResults.length === 2) {
-                isTonTransactionEnded = true;
-              }
+            let txFee: number;
+            if (isJettonTransfer) {
+              txFee = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
+              console.log(`TON Jetton: Total fee: ${txFee}`);
+            } else if (tonTransactionResult) {
+              txFee = Number(tonTransactionResult.totalFees) / 1e9;
+              console.log(`TON: Transaction fee: ${txFee}`);
+            } else {
+              console.error("TON: Transaction result is undefined");
+              throw new Error("Transaction result is undefined");
             }
-          }
         
-          let txFee: number;
-          if (isJettonTransfer) {
-            txFee = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
-          } else if (tonTransactionResult) {
-            txFee = Number(tonTransactionResult.totalFees) / 1e9;
-          } else {
-            throw new Error("Transaction result is undefined");
-          }
+            const txFeeUsd: number = txFee * tonPrice;
+            console.log(`TON: Transaction fee in USD: ${txFeeUsd}`);
         
-          const txFeeUsd: number = txFee * tonPrice;
+            const txHash: string = isJettonTransfer 
+              ? tonTransactionResults[tonTransactionResults.length - 1].hash 
+              : tonTransactionResult?.hash || '';
+            console.log(`TON: Transaction hash: ${txHash}`);
         
-          const txHash: string = isJettonTransfer 
-            ? tonTransactionResults[tonTransactionResults.length - 1].hash 
-            : tonTransactionResult?.hash || '';
+            const txStatus: TransactionStatus = isJettonTransfer
+              ? tonTransactionResults[tonTransactionResults.length - 1].success
+                ? TransactionStatus.SUCCESS
+                : TransactionStatus.FAILED
+              : tonTransactionResult?.success
+                ? TransactionStatus.SUCCESS
+                : TransactionStatus.FAILED;
+            console.log(`TON: Transaction status: ${txStatus}`);
         
-          const txStatus: TransactionStatus = isJettonTransfer
-            ? tonTransactionResults[tonTransactionResults.length - 1].success
-              ? TransactionStatus.SUCCESS
-              : TransactionStatus.FAILED
-            : tonTransactionResult?.success
-              ? TransactionStatus.SUCCESS
-              : TransactionStatus.FAILED;
+            console.log('TON: Updating transaction in database:', {
+              id: t.id,
+              fee: txFee,
+              hash: txHash,
+              status: txStatus,
+              fee_usd: txFeeUsd
+            });
         
-          await this.transactionRepo.update(
-            { id: t.id }, 
-            { 
-              fee: txFee, 
-              hash: txHash, 
-              status: txStatus, 
-              fee_usd: txFeeUsd 
-            }
-          );
-          break;
+            await this.transactionRepo.update(
+              { id: t.id }, 
+              { 
+                fee: txFee, 
+                hash: txHash, 
+                status: txStatus, 
+                fee_usd: txFeeUsd 
+              }
+            );
+            console.log('TON: Transaction updated successfully');
+            break;
         }
+      } catch (error) {
+        console.error(`Error processing transaction ${t.id}:`, error);
       }
-    } catch (e) {
-      this.logger("transferProcessing()").error(`Failed to update transactions: ` + e.message);
     }
+  } catch (e) {
+    console.error('Error in transferProcessing:', e);
+    this.logger("transferProcessing()").error(`Failed to update transactions: ${e.message}`, e.stack);
   }
+}
 }
