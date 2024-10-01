@@ -69,7 +69,7 @@ export async function jupiterSwap(
       console.log('Serialized transaction:', rawTransaction.toString());
       const txid = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: true,
-        maxRetries: 2
+        maxRetries: 5
       });
   
       console.log(`Transaction sent. ID: ${txid}`);
