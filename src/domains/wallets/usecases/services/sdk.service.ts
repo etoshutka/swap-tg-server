@@ -811,13 +811,14 @@ export class SdkService {
             fromTokenAddress || "So11111111111111111111111111111111111111112",
             toTokenAddress || "So11111111111111111111111111111111111111112",
             Number(amount),
-            200
+            300
           );
           console.log('Jupiter swap completed. Transaction ID:', txid);
           
           
           console.log('Fetching transaction details...');
-          const txDetails = await txid.txid;
+          //const txDetails = await txid.txid;
+          const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
           console.log('Transaction details:', JSON.stringify(txDetails, null, 2));
 
           // Get token prices for USD conversion
