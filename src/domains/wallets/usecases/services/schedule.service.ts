@@ -189,12 +189,13 @@ async transferProcessing(): Promise<void> {
             let isTonTransactionEnded: boolean = false;
             let tonTransactionResult: Transaction | undefined;
             const tonTransactionResults: Transaction[] = [];
+            let attemptston = 0;
             const MAX_ATTEMPTS = 30; // Максимальное количество попыток (5 минут при 10-секундном интервале)
 
             if (!isJettonTransfer) {
               console.log('Processing non-Jetton TON transfer');
-              while (!isTonTransactionEnded && attempts < MAX_ATTEMPTS) {
-                attempts++;
+              while (!isTonTransactionEnded && attemptston < MAX_ATTEMPTS) {
+                attemptston++;
                 await new Promise((resolve) => setTimeout(resolve, 10000));
                 const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
                 console.log(`TON: Retrieved ${walletTransactions.transactions.length} transactions for address ${t.from}`);
@@ -211,8 +212,8 @@ async transferProcessing(): Promise<void> {
               }
             } else {
               console.log('Processing Jetton TON transfer');
-              while (!isTonTransactionEnded && attempts < MAX_ATTEMPTS) {
-                attempts++;
+              while (!isTonTransactionEnded && attemptston < MAX_ATTEMPTS) {
+                attemptston++;
                 await new Promise((resolve) => setTimeout(resolve, 10000));
                 const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
                 console.log(`TON Jetton: Retrieved ${walletTransactions.transactions.length} transactions for address ${t.from}`);
@@ -228,12 +229,12 @@ async transferProcessing(): Promise<void> {
                   isTonTransactionEnded = true;
                   console.log('TON Jetton: Both transactions found');
                 } else {
-                  console.log(`TON Jetton: Continuing search... (Attempt ${attempts}/${MAX_ATTEMPTS})`);
+                  console.log(`TON Jetton: Continuing search... (Attempt ${attemptston}/${MAX_ATTEMPTS})`);
                 }
               }
             }
 
-            if (attempts >= MAX_ATTEMPTS) {
+            if (attemptston >= MAX_ATTEMPTS) {
               console.log(`TON: Max attempts reached. Transaction not found or incomplete.`);
               await this.transactionRepo.update(
                 { id: t.id },
