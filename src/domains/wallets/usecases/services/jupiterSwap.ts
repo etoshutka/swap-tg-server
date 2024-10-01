@@ -21,10 +21,23 @@ export async function jupiterSwap(
       const quoteResponse = await (
         await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
       ).json();
+
+
   
       console.log('Quote received:', quoteResponse);
+
+      console.log('Jupiter quote request URL:', `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`);
   
       console.log('Requesting swap transaction');
+
+      console.log('Swap request payload:', JSON.stringify({
+        quoteResponse,
+        userPublicKey: wallet.publicKey.toString(),
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 'auto'
+      }, null, 2));
+      
       const { swapTransaction } = await (
         await fetch('https://quote-api.jup.ag/v6/swap', {
           method: 'POST',
@@ -47,11 +60,13 @@ export async function jupiterSwap(
       var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
   
       transaction.sign([wallet.payer]);
+      console.log('Transaction after signing:', transaction);
   
       const latestBlockHash = await connection.getLatestBlockhash();
   
       console.log('Sending transaction');
       const rawTransaction = transaction.serialize()
+      console.log('Serialized transaction:', rawTransaction.toString());
       const txid = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: true,
         maxRetries: 2

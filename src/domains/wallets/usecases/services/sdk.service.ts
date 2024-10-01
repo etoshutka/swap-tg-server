@@ -784,6 +784,16 @@ export class SdkService {
           }
         });
 
+        console.log('Testing Solana connection...');
+        try {
+          const blockHeight = await connection.getBlockHeight();
+          console.log('Current block height:', blockHeight);
+        } catch (error) {
+          console.error('Error connecting to Solana network:', error);
+          throw new Error(`Failed to connect to Solana network: ${error.message}`);
+        }
+
+
         console.log('Solana connection created');
           
           let keypair;
@@ -800,6 +810,8 @@ export class SdkService {
 
           // Perform the swap
           console.log('Initiating Jupiter swap...');
+    
+          
           const txid = await jupiterSwap(
             connection,
             walletsol,
