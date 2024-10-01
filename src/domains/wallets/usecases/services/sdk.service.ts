@@ -747,6 +747,8 @@ export class SdkService {
             'x-api-key': this.configService.get("TATUM_MAINNET_API_KEY")
           };
 
+          
+
           // Функция для выполнения RPC-запросов
           const tatumRpcRequest = async (method: string, params: any[] = []) => {
             const response = await fetch(tatumRpcUrl, {
@@ -815,7 +817,7 @@ export class SdkService {
           
           
           console.log('Fetching transaction details...');
-          const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid);
+          const txDetails = await txid.txid;
           console.log('Transaction details:', JSON.stringify(txDetails, null, 2));
 
           // Get token prices for USD conversion
@@ -831,7 +833,7 @@ export class SdkService {
             type: TransactionType.SWAP,
             network: Network.SOL,
             status: TransactionStatus.PENDING,
-            hash: txDetails.transaction.signatures[0],
+            hash: txid.txid,
             fromAmount: Number(amount),
             fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
             toAmount: 0, // Нужно вычислить из результата транзакции, если возможно
