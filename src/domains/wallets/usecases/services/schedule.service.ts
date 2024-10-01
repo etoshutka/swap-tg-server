@@ -410,68 +410,68 @@ async swapProcessing(): Promise<void> {
             break;
 
           case Network.TON:
-            console.log('Processing TON swap');
-            const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
-            console.log(`TON price: ${tonPrice}`);
+      //       console.log('Processing TON swap');
+      //       const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
+      //       console.log(`TON price: ${tonPrice}`);
 
-            let isTonSwapEnded: boolean = false;
-            let tonSwapResult: Transaction | undefined;
-            let tonAttempts = 0;
+      //       let isTonSwapEnded: boolean = false;
+      //       let tonSwapResult: Transaction | undefined;
+      //       let tonAttempts = 0;
         
-            while (!isTonSwapEnded && tonAttempts < 5) {
-              tonAttempts++;
-              console.log(`TON: Attempt ${tonAttempts} to get swap details`);
-              await new Promise((resolve) => setTimeout(resolve, 10000));
-              const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
-              console.log(`TON: Retrieved ${walletTransactions.transactions.length} transactions for address ${t.from}`);
-              const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => tx.hash === t.hash);
+      //       while (!isTonSwapEnded && tonAttempts < 5) {
+      //         tonAttempts++;
+      //         console.log(`TON: Attempt ${tonAttempts} to get swap details`);
+      //         await new Promise((resolve) => setTimeout(resolve, 10000));
+      //         const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+      //         console.log(`TON: Retrieved ${walletTransactions.transactions.length} transactions for address ${t.from}`);
+      //         const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => tx.hash === t.hash);
         
-              if (transaction) {
-                console.log('TON: Found matching swap:', JSON.stringify(transaction, null, 2));
-                tonSwapResult = transaction;
-                isTonSwapEnded = true;
-                console.log(`TON: Swap ended: ${isTonSwapEnded}`);
-              } else {
-                console.log('TON: No matching swap found, continuing search...');
-              }
-            }
+      //         if (transaction) {
+      //           console.log('TON: Found matching swap:', JSON.stringify(transaction, null, 2));
+      //           tonSwapResult = transaction;
+      //           isTonSwapEnded = true;
+      //           console.log(`TON: Swap ended: ${isTonSwapEnded}`);
+      //         } else {
+      //           console.log('TON: No matching swap found, continuing search...');
+      //         }
+      //       }
         
-            if (isTonSwapEnded && tonSwapResult) {
-              const txFee: number = Number(tonSwapResult.totalFees) / 1e9;
-              console.log(`TON: Swap fee: ${txFee}`);
+      //       if (isTonSwapEnded && tonSwapResult) {
+      //         const txFee: number = Number(tonSwapResult.totalFees) / 1e9;
+      //         console.log(`TON: Swap fee: ${txFee}`);
         
-              const txFeeUsd: number = txFee * tonPrice;
-              console.log(`TON: Swap fee in USD: ${txFeeUsd}`);
+      //         const txFeeUsd: number = txFee * tonPrice;
+      //         console.log(`TON: Swap fee in USD: ${txFeeUsd}`);
         
-              const txStatus: TransactionStatus = tonSwapResult.success
-                ? TransactionStatus.SUCCESS
-                : TransactionStatus.FAILED;
-              console.log(`TON: Swap status: ${txStatus}`);
+      //         const txStatus: TransactionStatus = tonSwapResult.success
+      //           ? TransactionStatus.SUCCESS
+      //           : TransactionStatus.FAILED;
+      //         console.log(`TON: Swap status: ${txStatus}`);
         
-              console.log('TON: Updating swap in database:', {
-                id: t.id,
-                fee: txFee,
-                status: txStatus,
-                fee_usd: txFeeUsd
-              });
+      //         console.log('TON: Updating swap in database:', {
+      //           id: t.id,
+      //           fee: txFee,
+      //           status: txStatus,
+      //           fee_usd: txFeeUsd
+      //         });
         
-              await this.transactionRepo.update(
-                { id: t.id }, 
-                { 
-                  fee: txFee, 
-                  status: txStatus, 
-                  fee_usd: txFeeUsd 
-                }
-              );
-              console.log('TON: Swap updated successfully');
-            } else {
-              console.log('TON: Failed to get swap details after multiple attempts');
-            }
-            break;
-        }
-      } catch (error) {
-        console.error(`Error processing swap ${t.id}:`, error);
-      }
+      //         await this.transactionRepo.update(
+      //           { id: t.id }, 
+      //           { 
+      //             fee: txFee, 
+      //             status: txStatus, 
+      //             fee_usd: txFeeUsd 
+      //           }
+      //         );
+      //         console.log('TON: Swap updated successfully');
+      //       } else {
+      //         console.log('TON: Failed to get swap details after multiple attempts');
+      //       }
+      //       break;
+         }
+       } catch (error) {
+         console.error(`Error processing swap ${t.id}:`, error);
+     }
     }
   } catch (e) {
     console.error('Error in swapProcessing:', e);
