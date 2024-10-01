@@ -739,7 +739,8 @@ export class SdkService {
           return ethresult;
 
         case Network.SOL:
-          const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/`;
+          const apikey = this.configService.get("TATUM_MAINNET_API_KEY")
+          const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/${apikey}`;
           const headers = {
             'accept': 'application/json',
             'content-type': 'application/json',
@@ -772,17 +773,7 @@ export class SdkService {
           };
 
         // Создаем соединение с использованием нашей функции RPC-запросов
-        const connection = new Connection(tatumRpcUrl, {
-          async fetchMiddleware(url, options, fetchImpl) {
-            // Игнорируем url, так как мы всегда используем tatumRpcUrl
-            const response = await fetch(tatumRpcUrl, {
-              method: 'POST',
-              headers: headers,
-              body: options.body
-            });
-            return response;
-          }
-        });
+        const connection = new Connection(tatumRpcUrl)
 
         console.log('Testing Solana connection...');
         try {
