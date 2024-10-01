@@ -6,76 +6,78 @@ import bs58 from 'bs58';
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 export async function jupiterSwap(
-  connection: Connection,
-  wallet: Wallet,
-  inputMint: string,
-  outputMint: string,
-  amount: number,
-  slippageBps: number
-): Promise<string> {
-  const multiplier = inputMint === SOL_MINT ? 1e9 : 1e6;
-  const adjustedAmount = Math.floor(amount * multiplier);
-
-  // Step 1: Get quote
-  const quoteResponse = await (
-    await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
-  ).json();
-
-  console.log('Quote:', quoteResponse);
-
-  // Step 2: Get swap transaction
-  const { swapTransaction } = await (
-    await fetch('https://quote-api.jup.ag/v6/swap', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        quoteResponse,
-        userPublicKey: wallet.publicKey.toString(),
-        wrapAndUnwrapSol: true,
-        dynamicComputeUnitLimit: true,
-        prioritizationFeeLamports: 'auto',
-        dynamicSlippage: { "maxBps": 500 }
-      })
-    })
-  ).json();
-
-  // Step 3: Deserialize the transaction
-  const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
-  var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
-
-  // Step 4: Sign the transaction
-  transaction.sign([wallet.payer]);
-
-  const latestBlockHash = await connection.getLatestBlockhash();
-
-  // Step 5: Execute the transaction
-  const rawTransaction = transaction.serialize()
-  const txid = await connection.sendRawTransaction(rawTransaction, {
-    skipPreflight: true,
-    maxRetries: 2
-  });
-
-  // Step 6: Confirm the transaction
-  try {
-    const confirmation = await connection.confirmTransaction({
-      blockhash: latestBlockHash.blockhash,
-      lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-      signature: txid
-    });
-    
-    if (confirmation.value.err) {
-      throw new Error(`Transaction failed: ${confirmation.value.err}`);
+    connection: Connection,
+    wallet: Wallet,
+    inputMint: string,
+    outputMint: string,
+    amount: number,
+    slippageBps: number
+  ): Promise<{ txid: string; status: 'success' | 'error'; message: string }> {
+    try {
+      const multiplier = inputMint === SOL_MINT ? 10e9 : 10e6;
+      const adjustedAmount = Math.floor(amount * multiplier);
+  
+      console.log(`Requesting quote for ${adjustedAmount} ${inputMint} to ${outputMint}`);
+      const quoteResponse = await (
+        await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
+      ).json();
+  
+      console.log('Quote received:', quoteResponse);
+  
+      console.log('Requesting swap transaction');
+      const { swapTransaction } = await (
+        await fetch('https://quote-api.jup.ag/v6/swap', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            quoteResponse,
+            userPublicKey: wallet.publicKey.toString(),
+            wrapAndUnwrapSol: true,
+            dynamicComputeUnitLimit: true,
+            prioritizationFeeLamports: 'auto'
+          })
+        })
+      ).json();
+  
+      console.log('Swap transaction received');
+  
+      const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
+      var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+  
+      transaction.sign([wallet.payer]);
+  
+      const latestBlockHash = await connection.getLatestBlockhash();
+  
+      console.log('Sending transaction');
+      const rawTransaction = transaction.serialize()
+      const txid = await connection.sendRawTransaction(rawTransaction, {
+        skipPreflight: true,
+        maxRetries: 2
+      });
+  
+      console.log(`Transaction sent. ID: ${txid}`);
+  
+      console.log('Waiting for transaction confirmation');
+      const confirmation = await connection.confirmTransaction({
+        blockhash: latestBlockHash.blockhash,
+        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+        signature: txid
+      }, 'confirmed');
+  
+      if (confirmation.value.err) {
+        console.error('Transaction failed:', confirmation.value.err);
+        return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
+      }
+  
+      console.log('Transaction confirmed successfully');
+      return { txid, status: 'success', message: 'Swap completed successfully' };
+    } catch (error) {
+      console.error('Error in jupiterSwap:', error);
+      return { txid: '', status: 'error', message: `Swap failed: ${error.message}` };
     }
-    
-    console.log(`Swap transaction completed and confirmed. Transaction ID: ${txid}`);
-    return txid;
-  } catch (error) {
-    console.error('Error confirming transaction:', error);
-    throw new Error(`Failed to confirm transaction: ${error.message}`);
   }
-}
 
 export function createSolanaKeypair(privateKey: string): Keypair {
     let secretKey: Uint8Array;
