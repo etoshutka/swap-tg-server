@@ -812,7 +812,7 @@ export class SdkService {
           
           
           console.log('Fetching transaction details...');
-          const txDetails = await this.solSdk.blockchain.getTransaction(txid);
+          const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid);
           console.log('Transaction details:', JSON.stringify(txDetails, null, 2));
 
           // Get token prices for USD conversion
