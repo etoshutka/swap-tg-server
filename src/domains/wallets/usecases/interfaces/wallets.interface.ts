@@ -102,6 +102,20 @@ export class UpdateWalletBalancesParams {
   wallet: WalletModel;
 }
 
+export interface GetTokenExtendedInfoResult {
+  id: number;
+  name: string;
+  symbol: string;
+  total_supply: number | null;
+  max_supply: number | null;
+  market_cap: number;
+  price: number;
+  percent_change_24h: number;
+  percent_change_7d: number;
+  percent_change_30d: number;
+}
+
+
 export class TransferTransactionParams {
   @IsNumber({ maxDecimalPlaces: 9 }, { message: "Amount must be a number" })
   @IsNotEmpty({ message: "Amount is required" })

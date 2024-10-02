@@ -145,6 +145,16 @@ export class WalletsService {
     }
   }
 
+  async getTokenExtendedInfo(params: types.GetTokenInfoParams): Promise<ServiceMethodResponseDto<types.GetTokenExtendedInfoResult>> {
+    try {
+      const result = await this.sdkService.getTokenExtendedInfo(params);
+      return new ServiceMethodResponseDto<types.GetTokenExtendedInfoResult>({ ok: true, data: result, status: HttpStatus.OK });
+    } catch (e) {
+      this.logger("getTokenExtendedInfo()").error(`Failed to get extended token info: ${e.message}`);
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: `Failed to get extended token info: ${e.message}` });
+    }
+  }
+
   /**
    * @name importWallet
    * @desc Import existing wallet

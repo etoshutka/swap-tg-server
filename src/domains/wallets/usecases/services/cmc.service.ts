@@ -108,4 +108,39 @@ export class CmcService {
       throw e;
     }
   }
+
+  async getTokenExtendedInfo(params: types.GetTokenInfoParams): Promise<types.GetTokenExtendedInfoResult> {
+    try {
+      const info: types.GetTokenInfoResult = await this.getTokenInfo(params);
+
+      const data = await this.makeRequest({
+        endpoint: "quotes/latest",
+        query: { id: info.id },
+      });
+
+      if (!data) {
+        throw new Error(`"data" is empty`);
+      }
+
+      const tokenData = data[info.id];
+      const quote = tokenData.quote.USD;
+
+      return {
+        id: tokenData.id,
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        total_supply: tokenData.total_supply,
+        max_supply: tokenData.max_supply,
+        market_cap: quote.market_cap,
+        price: quote.price,
+        percent_change_24h: quote.percent_change_24h,
+        percent_change_7d: quote.percent_change_7d,
+        percent_change_30d: quote.percent_change_30d,
+      };
+    } catch (e) {
+      this.logger("getTokenExtendedInfo()").error(`Failed to get extended info for ${params.symbol || params.address}: ${e.message}`);
+      throw e;
+    }
+  }
+  
 }

@@ -102,6 +102,21 @@ export class SdkService {
   }
 
   /**
+   * @name getTokenExtendedInfo
+   * @desc Get extended token information
+   * @param {types.GetTokenInfoParams} params
+   * @returns {Promise<types.GetTokenExtendedInfoResult>}
+   */
+  async getTokenExtendedInfo(params: types.GetTokenInfoParams): Promise<types.GetTokenExtendedInfoResult> {
+    try {
+      return await this.cmcService.getTokenExtendedInfo({ symbol: params?.symbol, address: params?.address });
+    } catch (e) {
+      this.logger("getTokenExtendedInfo()").error(`Failed to get extended info for ${params.symbol || params.address}: ${e.message}`);
+      throw e;
+    }
+  }
+
+  /**
    * @name generateWallet
    * @desc Generate new wallet
    * @param {types.GenerateWalletParams} params
@@ -729,7 +744,7 @@ export class SdkService {
             toAmount_usd: (Number(quoteData.buyAmount) / 1e18) * toTokenPriceInfo.price,
             from: fromAddress,
             to: fromAddress,
-            currency: fromTokenAddress || nativeSymbol,
+            currency: nativeSymbol,
             fromCurrency: fromTokenAddress || nativeSymbol,
             toCurrency: toTokenAddress || nativeSymbol,
             fee: Number(quoteData.totalNetworkFee) / 1e18,
@@ -842,7 +857,7 @@ export class SdkService {
             toAmount_usd: 0,
             from: fromAddress,
             to: fromAddress,
-            currency: fromTokenAddress || "SOL",
+            currency: "SOL",
             fromCurrency: fromTokenAddress || "SOL",
             toCurrency: toTokenAddress || "SOL",
             fee: 0,
@@ -975,7 +990,7 @@ export class SdkService {
             toAmount_usd: 0,
             from: fromAddress,
             to: fromAddress,
-            currency: fromTokenAddress ? fromToken.toString().replace('jetton:', '') : 'TON',
+            currency: 'TON',
             fromCurrency: fromTokenAddress ? fromToken.toString().replace('jetton:', '') : 'TON',
             toCurrency: toTokenAddress ? toToken.toString().replace('jetton:', '') : 'TON',
             fee: 0,
