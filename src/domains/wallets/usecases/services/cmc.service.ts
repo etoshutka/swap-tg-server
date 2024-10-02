@@ -125,16 +125,16 @@ export class CmcService {
       const quote: Record<string, number> = data?.[info.id]?.quote.USD;
 
       return {
-        id: quote.id,
-        name: quote.name ,
-        symbol: quote.symbol,
-        total_supply: quote.total_supply,
-        max_supply: quote.max_supply,
-        market_cap: quote.market_cap,
-        price: quote.price,
-        percent_change_24h: quote.percent_change_24h,
-        percent_change_7d: quote.percent_change_7d,
-        percent_change_30d: quote.percent_change_30d,
+        id: quote.id ?? 0,
+        name: quote.name ?? 0,
+        symbol: quote.symbol ?? 0,
+        total_supply: quote.total_supply ?? 0,
+        max_supply: quote.max_supply ?? 0,
+        market_cap: quote.market_cap ?? 0,
+        price: quote.price ?? 0,
+        percent_change_24h: quote.percent_change_24h ?? 0,
+        percent_change_7d: quote.percent_change_7d ?? 0,
+        percent_change_30d: quote.percent_change_30d ?? 0,
       };
     } catch (e) {
       this.logger("getTokenExtendedInfo()").error(`Failed to get extended info for ${params.symbol || params.address}: ${e.message}`);
