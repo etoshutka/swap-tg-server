@@ -109,7 +109,7 @@ export class CmcService {
     }
   }
 
-  async getTokenExtendedInfo(params: types.GetTokenInfoParams): Promise<types.GetTokenExtendedInfoResult> {
+  async getTokenExtendedInfo(params: types.GetTokenPriceParams): Promise<types.GetTokenExtendedInfoResult> {
     try {
       const info: types.GetTokenInfoResult = await this.getTokenInfo(params);
 

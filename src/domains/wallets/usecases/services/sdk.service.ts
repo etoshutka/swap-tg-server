@@ -107,7 +107,7 @@ export class SdkService {
    * @param {types.GetTokenInfoParams} params
    * @returns {Promise<types.GetTokenExtendedInfoResult>}
    */
-  async getTokenExtendedInfo(params: types.GetTokenInfoParams): Promise<types.GetTokenExtendedInfoResult> {
+  async getTokenExtendedInfo(params: types.GetTokenPriceParams): Promise<types.GetTokenExtendedInfoResult> {
     try {
       return await this.cmcService.getTokenExtendedInfo({ symbol: params?.symbol, address: params?.address });
     } catch (e) {

@@ -53,7 +53,7 @@ export class WalletsController {
 
   @UseGuards(AuthGuard)
   @Get("token/extended-info")
-  async getTokenExtendedInfo(@Query() params: serviceTypes.GetTokenInfoParams) {
+  async getTokenExtendedInfo(@Query() params: serviceTypes.GetTokenPriceParams) {
     const result = await this.walletsService.getTokenExtendedInfo(params);
     if (!result.ok) throw new HttpException(result.message, result.status);
     return result;

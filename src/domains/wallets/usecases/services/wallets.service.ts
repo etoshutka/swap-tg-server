@@ -145,7 +145,7 @@ export class WalletsService {
     }
   }
 
-  async getTokenExtendedInfo(params: types.GetTokenInfoParams): Promise<ServiceMethodResponseDto<types.GetTokenExtendedInfoResult>> {
+  async getTokenExtendedInfo(params: types.GetTokenPriceParams): Promise<ServiceMethodResponseDto<types.GetTokenExtendedInfoResult>> {
     try {
       const result = await this.sdkService.getTokenExtendedInfo(params);
       return new ServiceMethodResponseDto<types.GetTokenExtendedInfoResult>({ ok: true, data: result, status: HttpStatus.OK });
