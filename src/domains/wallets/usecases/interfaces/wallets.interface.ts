@@ -104,8 +104,8 @@ export class UpdateWalletBalancesParams {
 
 export interface GetTokenExtendedInfoResult {
   id: number;
-  name: string | number;
-  symbol: string | number;
+  name: string;
+  symbol: string;
   total_supply: number | null;
   max_supply: number | null;
   market_cap: number;
