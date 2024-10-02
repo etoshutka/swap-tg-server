@@ -111,22 +111,33 @@ export class CmcService {
 
   async getTokenExtendedInfo(params: types.GetTokenPriceParams): Promise<types.GetTokenExtendedInfoResult> {
     try {
+      console.log('getTokenExtendedInfo params:', params);
+  
       const info: types.GetTokenInfoResult = await this.getTokenInfo(params);
+      console.log('Token info received:', info);
   
       const data = await this.makeRequest({
         endpoint: "quotes/latest",
         query: { id: info.id },
       });
+      console.log('Quotes data received:', data);
   
       if (!data) {
-        throw new Error(`"data" is empty`);
+        throw new Error(`"data" is empty for token ID: ${info.id}`);
       }
   
       const tokenData = data[info.id];
-      const quote = tokenData.quote.USD;
+      console.log('Token data:', tokenData);
   
-      return {
-        id: parseInt(info.id), // Convert string to number
+      if (!tokenData || !tokenData.quote || !tokenData.quote.USD) {
+        throw new Error(`Invalid token data structure for token ID: ${info.id}`);
+      }
+  
+      const quote = tokenData.quote.USD;
+      console.log('Quote data:', quote);
+  
+      const result: types.GetTokenExtendedInfoResult = {
+        id: parseInt(info.id),
         name: info.name,
         symbol: info.symbol,
         total_supply: tokenData.total_supply || null,
@@ -137,7 +148,11 @@ export class CmcService {
         percent_change_7d: quote.percent_change_7d || 0,
         percent_change_30d: quote.percent_change_30d || 0,
       };
+      console.log('Prepared result:', result);
+  
+      return result;
     } catch (e) {
+      console.error(`Error in getTokenExtendedInfo:`, e);
       this.logger("getTokenExtendedInfo()").error(`Failed to get extended info for ${params.symbol || params.address}: ${e.message}`);
       throw e;
     }
