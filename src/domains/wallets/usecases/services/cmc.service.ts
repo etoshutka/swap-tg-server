@@ -122,15 +122,14 @@ export class CmcService {
         throw new Error(`"data" is empty`);
       }
 
-      const tokenData = data[info.id];
-      const quote = tokenData.quote.USD;
+      const quote: Record<string, number> = data?.[info.id]?.quote.USD;
 
       return {
-        id: tokenData.id,
-        name: tokenData.name,
-        symbol: tokenData.symbol,
-        total_supply: tokenData.total_supply,
-        max_supply: tokenData.max_supply,
+        id: quote.id,
+        name: quote.name ,
+        symbol: quote.symbol,
+        total_supply: quote.total_supply,
+        max_supply: quote.max_supply,
         market_cap: quote.market_cap,
         price: quote.price,
         percent_change_24h: quote.percent_change_24h,
