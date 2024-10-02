@@ -146,8 +146,8 @@ export class SwapTokensResult {
 
 export interface GetTokenExtendedInfoResult {
   id: number;
-  name: string;
-  symbol: string;
+  name: string | number;
+  symbol: string | number;
   total_supply: number | null;
   max_supply: number | null;
   market_cap: number;
