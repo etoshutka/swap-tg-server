@@ -410,6 +410,59 @@ async swapProcessing(): Promise<void> {
             break;
 
           case Network.TON:
+            console.log("start TON swap processing")
+            const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
+            const isJettonTransfer: boolean = t.hash.includes("jetton");
+            const transferId: string = isJettonTransfer ? t.hash.split(":")[0] : t.hash;
+
+            let isTonTransactionEnded: boolean = false;
+            let tonTransactionResult: Transaction;
+            const tonTransactionResults: Transaction[] = [];
+
+            if (!isJettonTransfer) {
+              while (!isTonTransactionEnded) {
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+                const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+                const transaction: Transaction = walletTransactions.transactions.find((tx) => tx.outMsgs?.[0]?.decodedBody?.text === transferId);
+
+                if (transaction) {
+                  tonTransactionResult = transaction;
+                  isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
+                }
+              }
+            } else {
+              while (!isTonTransactionEnded) {
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+                const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+                const transaction: Transaction = walletTransactions.transactions.find((t) => JSON.stringify(t).includes(String(transferId)));
+
+                if (transaction && tonTransactionResults.length < 2 && (transaction.success || transaction.destroyed || transaction.aborted)) {
+                  tonTransactionResults.push(transaction);
+                }
+
+                if (tonTransactionResults.length === 2) {
+                  isTonTransactionEnded = true;
+                }
+              }
+            }
+
+            const txFee: number | bigint = isJettonTransfer
+              ? tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1_000_000_000
+              : tonTransactionResult.totalFees / BigInt(1_000_000_000);
+            const txFeeUsd: number = Number(txFee) * tonPrice;
+
+            const txHash: string = isJettonTransfer ? tonTransactionResults[tonTransactionResults.length - 1].hash : tonTransactionResult.hash;
+
+            const txStatus: TransactionStatus = isJettonTransfer
+              ? tonTransactionResults[tonTransactionResults.length - 1].success
+                ? TransactionStatus.SUCCESS
+                : TransactionStatus.FAILED
+              : tonTransactionResult.success
+                ? TransactionStatus.SUCCESS
+                : TransactionStatus.FAILED;
+
+            await this.transactionRepo.update({ id: t.id }, { fee: Number(txFee), hash: txHash, status: txStatus, fee_usd: txFeeUsd });
+            break;
       //       console.log('Processing TON swap');
       //       const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
       //       console.log(`TON price: ${tonPrice}`);
