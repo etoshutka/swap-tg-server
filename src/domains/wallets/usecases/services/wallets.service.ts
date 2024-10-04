@@ -624,22 +624,29 @@ async swapTokens(params: types.SwapTokensParams): Promise<ServiceMethodResponseD
 }
 
 async estimateSwapFee(params: types.SwapTokensParams): Promise<ServiceMethodResponseDto<number>> {
+  this.logger(`Estimating swap fee for params: ${JSON.stringify(params)}`);
   try {
     const { wallet_id, from_token_id, to_token_id, amount } = params;
 
+    this.logger(`Getting wallet data for ID: ${wallet_id}`);
     const walletData = await this.getWallet({ id: wallet_id });
     if (!walletData.ok || !walletData.data) {
+      this.logger(`Wallet not found for ID: ${wallet_id}`);
       return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Wallet not found" });
     }
     const wallet: WalletModel = walletData.data;
+    this.logger(`Wallet found: ${JSON.stringify(wallet)}`);
 
     const fromToken = wallet.tokens.find(token => token.id === from_token_id);
     const toToken = wallet.tokens.find(token => token.id === to_token_id);
 
     if (!fromToken || !toToken) {
+      this.logger(`Token not found. FromToken: ${from_token_id}, ToToken: ${to_token_id}`);
       return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Token not found" });
     }
+    this.logger(`Tokens found. FromToken: ${JSON.stringify(fromToken)}, ToToken: ${JSON.stringify(toToken)}`);
 
+    this.logger(`Calling sdkService.estimateSwapFee`);
     const estimatedFee = await this.sdkService.estimateSwapFee({
       network: wallet.network,
       fromTokenAddress: fromToken.contract,
@@ -648,10 +655,11 @@ async estimateSwapFee(params: types.SwapTokensParams): Promise<ServiceMethodResp
       fromAddress: wallet.address,
       fromPrivateKey: ''
     });
+    this.logger(`Estimated fee: ${estimatedFee}`);
 
     return new ServiceMethodResponseDto<number>({ ok: true, data: estimatedFee, status: HttpStatus.OK });
   } catch (e) {
-    this.logger("estimateSwapFee()").error(`Failed to estimate swap fee: ${e.message}`);
+    this.logger(`Failed to estimate swap fee: ${e.message}`);
     return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: `Failed to estimate swap fee: ${e.message}` });
   }
 }
