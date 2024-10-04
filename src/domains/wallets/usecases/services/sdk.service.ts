@@ -1014,16 +1014,9 @@ export class SdkService {
     this.logger(`Estimating swap fee for params: ${JSON.stringify(params)}`);
     switch (params.network) {
       case Network.ETH:
+        return 0
       case Network.BSC:
-        this.logger(`Estimating gas for ETH/BSC`);
-        const gasInfo = await this.ethSdk.blockchain.estimateGas({
-          to: params.toTokenAddress,
-          from: params.fromAddress,
-          amount: params.amount,
-        });
-        const fee = Number(gasInfo.gasPrice) * Number(gasInfo.gasLimit) / 1e18;
-        this.logger(`Estimated fee for ETH/BSC: ${fee}`);
-        return fee
+        return 0.001
       case Network.SOL:
         this.logger(`Returning fixed fee for SOL: 0.0001`);
         return 0.0001;

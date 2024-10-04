@@ -63,8 +63,17 @@ export class TelegramService {
         await bot.editMessageText("⏳ Check your referral link...", { chat_id, message_id: m1.message_id });
         !!invited_by && (await this.referralService.checkReferralLink({ invited_by, telegram_id }));
 
-        // Send welcome message
-        await bot.editMessageText("Welcome to the TestCryptoSwapBot! 🙌", { chat_id, message_id: m1.message_id });
+        // Send welcome message with inline keyboard
+        const miniAppUrl = this.configService.get("TELEGRAM_MINI_APP_URL"); // Получаем URL miniapp из конфигурации
+        await bot.editMessageText("Welcome to the TestCryptoSwapBot! 🙌", {
+          chat_id,
+          message_id: m1.message_id,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "Open Mini App", web_app: { url: miniAppUrl } }]
+            ]
+          }
+        });
       }
     });
   }
