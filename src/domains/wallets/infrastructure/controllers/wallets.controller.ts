@@ -120,4 +120,18 @@ export class WalletsController {
       throw new HttpException(error.message || 'Internal server error', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+  
+  @UseGuards(AuthGuard)
+  @Post("estimate-swap-fee")
+  async estimateSwapFee(@Body() body: serviceTypes.SwapTokensParams, @Req() req: Request & { user: UserModel }) {
+    try {
+      const result = await this.walletsService.estimateSwapFee(body);
+      if (!result.ok) {
+        throw new HttpException(result.message, result.status);
+      }
+      return result;
+    } catch (error) {
+      throw new HttpException(error.message || 'Internal server error', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
 }

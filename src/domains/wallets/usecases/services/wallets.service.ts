@@ -622,4 +622,37 @@ async swapTokens(params: types.SwapTokensParams): Promise<ServiceMethodResponseD
     return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: `Failed to swap tokens: ${e.message}` });
   }
 }
+
+async estimateSwapFee(params: types.SwapTokensParams): Promise<ServiceMethodResponseDto<number>> {
+  try {
+    const { wallet_id, from_token_id, to_token_id, amount } = params;
+
+    const walletData = await this.getWallet({ id: wallet_id });
+    if (!walletData.ok || !walletData.data) {
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Wallet not found" });
+    }
+    const wallet: WalletModel = walletData.data;
+
+    const fromToken = wallet.tokens.find(token => token.id === from_token_id);
+    const toToken = wallet.tokens.find(token => token.id === to_token_id);
+
+    if (!fromToken || !toToken) {
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Token not found" });
+    }
+
+    const estimatedFee = await this.sdkService.estimateSwapFee({
+      network: wallet.network,
+      fromTokenAddress: fromToken.contract,
+      toTokenAddress: toToken.contract,
+      amount: amount.toString(),
+      fromAddress: wallet.address,
+      fromPrivateKey: ''
+    });
+
+    return new ServiceMethodResponseDto<number>({ ok: true, data: estimatedFee, status: HttpStatus.OK });
+  } catch (e) {
+    this.logger("estimateSwapFee()").error(`Failed to estimate swap fee: ${e.message}`);
+    return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: `Failed to estimate swap fee: ${e.message}` });
+  }
+}
 }

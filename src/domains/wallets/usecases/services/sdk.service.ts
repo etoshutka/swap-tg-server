@@ -1011,7 +1011,6 @@ export class SdkService {
   }
 
   async estimateSwapFee(params: types.SwapTokensParams): Promise<number> {
-    // Логика оценки комиссии в зависимости от сети
     switch (params.network) {
       case Network.ETH:
       case Network.BSC:
@@ -1022,13 +1021,9 @@ export class SdkService {
         });
         return Number(gasInfo.gasPrice) * Number(gasInfo.gasLimit) / 1e18;
       case Network.SOL:
-        // Оценка комиссии для Solana
-        return 0.000005;
+        return 0.0001;
       case Network.TON:
-        // Оценка комиссии для TON
-        return 0.05; 
-      default:
-        return 0;
+        return 0.25; 
     }
   }
 }
