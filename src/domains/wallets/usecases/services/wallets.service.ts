@@ -161,12 +161,19 @@ export class WalletsService {
    * @param {types.GetHistoricalQuotesParams} params
    * @returns {Promise<ServiceMethodResponseDto<types.GetHistoricalQuotesResult>>}
    */
+  
   async getHistoricalQuotes(params: types.GetHistoricalQuotesParams): Promise<ServiceMethodResponseDto<types.GetHistoricalQuotesResult>> {
     try {
       console.log('getHistoricalQuotes params:', params);
 
       const result = await this.sdkService.getHistoricalQuotes(params);
       console.log('Historical quotes data received:', result);
+
+      return new ServiceMethodResponseDto<types.GetHistoricalQuotesResult>({
+        ok: true,
+        data: result,
+        status: HttpStatus.OK
+      });
     } catch (e) {
       console.error(`Error in getHistoricalQuotes:`, e);
       this.logger("getHistoricalQuotes()").error(`Failed to get historical quotes for ${params.id || params.symbol || params.address}: ${e.message}`);
