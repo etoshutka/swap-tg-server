@@ -158,6 +158,27 @@ export interface GetTokenExtendedInfoResult {
 }
 
 
+export interface GetHistoricalQuotesParams {
+  id?: string;
+  symbol?: string;
+  address?: string;
+  timeStart?: string;
+  timeEnd?: string;
+  count?: number;
+  interval?: string;
+  convert?: string;
+}
+
+export interface GetHistoricalQuotesResult {
+  id: string;
+  symbol: string;
+  name: string;
+  quotes: {
+    timestamp: string;
+    price: number;
+  }[];
+}
+
 export type Sdk<N> = N extends Network.ETH
   ? ReturnType<typeof TatumEthSDK>
   : N extends Network.BSC

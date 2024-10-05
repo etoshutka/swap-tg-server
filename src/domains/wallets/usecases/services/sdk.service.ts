@@ -117,6 +117,30 @@ export class SdkService {
   }
 
   /**
+   * @name getHistoricalQuotes
+   * @desc Get historical quotes for a token
+   * @param {types.GetHistoricalQuotesParams} params
+   * @returns {Promise<types.GetHistoricalQuotesResult>}
+   */
+  async getHistoricalQuotes(params: types.GetHistoricalQuotesParams): Promise<types.GetHistoricalQuotesResult> {
+    try {
+      return await this.cmcService.getHistoricalQuotes({
+        id: params.id,
+        symbol: params.symbol,
+        address: params.address,
+        timeStart: params.timeStart,
+        timeEnd: params.timeEnd,
+        count: params.count,
+        interval: params.interval,
+        convert: params.convert,
+      });
+    } catch (e) {
+      this.logger("getHistoricalQuotes()").error(`Failed to get historical quotes for ${params.id || params.symbol || params.address}: ${e.message}`);
+      throw e;
+    }
+  }
+
+  /**
    * @name generateWallet
    * @desc Generate new wallet
    * @param {types.GenerateWalletParams} params

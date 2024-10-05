@@ -109,6 +109,12 @@ export class CmcService {
     }
   }
 
+  /**
+   * @name getTokenExtendedInfo
+   * @desc Get token extended price
+   * @param {GetTokenPriceParams} params
+   * @returns {Promise<GetTokenExtendedInfoResult>}
+   */
   async getTokenExtendedInfo(params: types.GetTokenPriceParams): Promise<types.GetTokenExtendedInfoResult> {
     try {
       console.log('getTokenExtendedInfo params:', params);
@@ -157,5 +163,63 @@ export class CmcService {
       throw e;
     }
   }
-  
+
+
+ /**
+   * @name getHistoricalQuotes
+   * @desc Get historical price data for a cryptocurrency to build a chart
+   * @param {GetHistoricalQuotesParams} params
+   * @returns {Promise<GetHistoricalQuotesResult>}
+   */
+ async getHistoricalQuotes(params: types.GetHistoricalQuotesParams): Promise<types.GetHistoricalQuotesResult> {
+  try {
+    console.log('getHistoricalQuotes params:', params);
+
+    const info: types.GetTokenInfoResult = await this.getTokenInfo(params);
+    console.log('Token info received:', info);
+
+    const query: Record<string, string> = {
+      id: info.id.toString(),
+      time_start: params.timeStart ?? '',
+      time_end: params.timeEnd ?? '',
+      count: params.count?.toString() ?? '',
+      interval: params.interval ?? '',
+      convert: params.convert || 'USD',
+      aux: 'price,quote_timestamp' 
+    };
+
+    // Remove empty values from query
+    Object.keys(query).forEach(key => query[key] === '' && delete query[key]);
+
+    const data = await this.makeRequest({
+      endpoint: "quotes/historical",
+      query: query,
+    });
+    console.log('Historical quotes data received:', data);
+
+    if (!data || !data[info.id]) {
+      throw new Error(`No historical data found for token ID: ${info.id}`);
+    }
+
+    const tokenData = data[info.id];
+    console.log('Token historical data:', tokenData);
+
+    const result: types.GetHistoricalQuotesResult = {
+      id: info.id,
+      symbol: info.symbol,
+      name: info.name,
+      quotes: tokenData.quotes.map(quote => ({
+        timestamp: quote.timestamp,
+        price: quote.quote[params.convert || 'USD'].price,
+      }))
+    };
+    console.log('Prepared result:', result);
+
+    return result;
+  } catch (e) {
+    console.error(`Error in getHistoricalQuotes:`, e);
+    this.logger("getHistoricalQuotes()").error(`Failed to get historical quotes for ${params.id || params.symbol || params.address}: ${e.message}`);
+    throw e;
+  }
+}
 }

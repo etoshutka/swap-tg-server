@@ -156,6 +156,29 @@ export class WalletsService {
   }
 
   /**
+   * @name getHistoricalQuotes
+   * @desc Get historical quotes for a token
+   * @param {types.GetHistoricalQuotesParams} params
+   * @returns {Promise<ServiceMethodResponseDto<types.GetHistoricalQuotesResult>>}
+   */
+  async getHistoricalQuotes(params: types.GetHistoricalQuotesParams): Promise<ServiceMethodResponseDto<types.GetHistoricalQuotesResult>> {
+    try {
+      console.log('getHistoricalQuotes params:', params);
+
+      const result = await this.sdkService.getHistoricalQuotes(params);
+      console.log('Historical quotes data received:', result);
+    } catch (e) {
+      console.error(`Error in getHistoricalQuotes:`, e);
+      this.logger("getHistoricalQuotes()").error(`Failed to get historical quotes for ${params.id || params.symbol || params.address}: ${e.message}`);
+      return new ServiceMethodResponseDto({ 
+        ok: false, 
+        status: HttpStatus.INTERNAL_SERVER_ERROR, 
+        message: `Failed to get historical quotes: ${e.message}` 
+      });
+    }
+  }
+
+  /**
    * @name importWallet
    * @desc Import existing wallet
    * @param {types.ImportWalletParams} params
@@ -663,4 +686,5 @@ async estimateSwapFee(params: types.SwapTokensParams): Promise<ServiceMethodResp
     return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: `Failed to estimate swap fee: ${e.message}` });
   }
 }
+
 }

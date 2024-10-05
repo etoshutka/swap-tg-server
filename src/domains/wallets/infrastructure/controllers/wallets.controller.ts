@@ -68,6 +68,20 @@ export class WalletsController {
   }
 
   @UseGuards(AuthGuard)
+  @Get("token/historical-quotes")
+  async getHistoricalQuotes(@Query() params: serviceTypes.GetHistoricalQuotesParams) {
+    try {
+      const result = await this.walletsService.getHistoricalQuotes(params);
+      if (!result.ok) {
+        throw new HttpException(result.message, result.status);
+      }
+      return result;
+    } catch (error) {
+      throw new HttpException(error.message || 'Internal server error', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @UseGuards(AuthGuard)
   @Post("create")
   async createWallet(@Body() body: serviceTypes.GenerateWalletParams, @Req() req: Request & { user: UserModel }) {
     const result = await this.walletsService.generateWallet({ ...body, user_id: req.user.id });
@@ -120,7 +134,7 @@ export class WalletsController {
       throw new HttpException(error.message || 'Internal server error', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-  
+
   @UseGuards(AuthGuard)
   @Post("estimate-swap-fee")
   async estimateSwapFee(@Body() body: serviceTypes.SwapTokensParams, @Req() req: Request & { user: UserModel }) {
