@@ -192,7 +192,7 @@ export class CmcService {
 
     console.log('Historical data received:', JSON.stringify(data, null, 2));
 
-    if (!data || !data[info.id] || !data[info.id].quotes || !Array.isArray(data[info.id].quotes)) {
+    if (!data || !data.quotes || !Array.isArray(data.quotes)) {
       console.log('No historical data found for token ID:', info.id);
       return {
         id: info.id,
@@ -202,13 +202,11 @@ export class CmcService {
       };
     }
 
-    const tokenData = data[info.id];
-
     const result: types.GetHistoricalQuotesResult = {
       id: info.id,
       name: info.name,
       symbol: info.symbol,
-      quotes: tokenData.quotes.map(quote => ({
+      quotes: data.quotes.map(quote => ({
         timestamp: quote.timestamp,
         price: quote.quote[params.convert || 'USD'].price,
       }))
