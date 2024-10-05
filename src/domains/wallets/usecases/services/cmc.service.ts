@@ -171,6 +171,7 @@ export class CmcService {
    * @param {GetHistoricalQuotesParams} params
    * @returns {Promise<GetHistoricalQuotesResult>}
    */
+ 
  async getHistoricalQuotes(params: types.GetHistoricalQuotesParams): Promise<types.GetHistoricalQuotesResult> {
   try {
     console.log('getHistoricalQuotes params:', params);
@@ -179,21 +180,44 @@ export class CmcService {
     console.log('Token info received:', info);
 
     const data = await this.makeRequest({
-      endpoint: "quotes/latest",
-      query: { id: info.id },
+      endpoint: "quotes/historical",
+      query: { 
+        id: info.id,
+        time_start: params.timeStart,
+        time_end: params.timeEnd,
+        interval: params.interval,
+        convert: params.convert || 'USD'
+      },
     });
 
-    if (!data) {
-      throw new Error(`"data" is empty for token ID: ${info.id}`);
+    console.log('Historical data received:', JSON.stringify(data, null, 2));
+
+    if (!data || !data[info.id]) {
+      console.log('No historical data found for token ID:', info.id);
+      return {
+        id: info.id,
+        name: info.name,
+        symbol: info.symbol,
+        quotes: []
+      };
     }
 
     const tokenData = data[info.id];
-    const quote = tokenData.quote.USD;
-    console.log('Quote data:', quote);
+
+    if (!tokenData.quotes || !Array.isArray(tokenData.quotes)) {
+      console.log('Quotes data is missing or not an array for token ID:', info.id);
+      return {
+        id: info.id,
+        name: info.name,
+        symbol: info.symbol,
+        quotes: []
+      };
+    }
 
     const result: types.GetHistoricalQuotesResult = {
       id: info.id,
       name: info.name,
+      symbol: info.symbol,
       quotes: tokenData.quotes.map(quote => ({
         timestamp: quote.timestamp,
         price: quote.quote[params.convert || 'USD'].price,
@@ -204,7 +228,7 @@ export class CmcService {
     return result;
   } catch (e) {
     console.error(`Error in getHistoricalQuotes:`, e);
-    this.logger("getHistoricalQuotes()").error(`Failed to get historical quotes for ${params.id}: ${e.message}`);
+    this.logger("getHistoricalQuotes()").error(`Failed to get historical quotes for ${params.id || params.symbol}: ${e.message}`);
     throw e;
   }
 }

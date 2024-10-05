@@ -55,6 +55,7 @@ export interface GetHistoricalQuotesParams {
 
 export interface GetHistoricalQuotesResult {
   id: string;
+  symbol: string;
   name: string;
   quotes: {
     timestamp: string;
