@@ -116,9 +116,9 @@ export interface GetTokenExtendedInfoResult {
 }
 
 export interface GetHistoricalQuotesParams {
-  id?: string;
-  symbol?: string;
+  id:string;
   address?: string;
+  symbol?: string;  
   timeStart?: string;
   timeEnd?: string;
   count?: number;
@@ -128,7 +128,6 @@ export interface GetHistoricalQuotesParams {
 
 export interface GetHistoricalQuotesResult {
   id: string;
-  symbol: string;
   name: string;
   quotes: {
     timestamp: string;

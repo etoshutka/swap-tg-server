@@ -178,35 +178,21 @@ export class CmcService {
     const info: types.GetTokenInfoResult = await this.getTokenInfo(params);
     console.log('Token info received:', info);
 
-    const query: Record<string, string> = {
-      id: info.id.toString(),
-      time_start: params.timeStart ?? '',
-      time_end: params.timeEnd ?? '',
-      count: params.count?.toString() ?? '',
-      interval: params.interval ?? '',
-      convert: params.convert || 'USD',
-      aux: 'price,quote_timestamp' 
-    };
-
-    // Remove empty values from query
-    Object.keys(query).forEach(key => query[key] === '' && delete query[key]);
-
     const data = await this.makeRequest({
-      endpoint: "quotes/historical",
-      query: query,
+      endpoint: "quotes/latest",
+      query: { id: info.id },
     });
-    console.log('Historical quotes data received:', data);
 
-    if (!data || !data[info.id]) {
-      throw new Error(`No historical data found for token ID: ${info.id}`);
+    if (!data) {
+      throw new Error(`"data" is empty for token ID: ${info.id}`);
     }
 
     const tokenData = data[info.id];
-    console.log('Token historical data:', tokenData);
+    const quote = tokenData.quote.USD;
+    console.log('Quote data:', quote);
 
     const result: types.GetHistoricalQuotesResult = {
       id: info.id,
-      symbol: info.symbol,
       name: info.name,
       quotes: tokenData.quotes.map(quote => ({
         timestamp: quote.timestamp,
@@ -218,7 +204,7 @@ export class CmcService {
     return result;
   } catch (e) {
     console.error(`Error in getHistoricalQuotes:`, e);
-    this.logger("getHistoricalQuotes()").error(`Failed to get historical quotes for ${params.id || params.symbol || params.address}: ${e.message}`);
+    this.logger("getHistoricalQuotes()").error(`Failed to get historical quotes for ${params.id}: ${e.message}`);
     throw e;
   }
 }
