@@ -181,4 +181,6 @@ export class SwapTokensParams {
   @IsNumber({ maxDecimalPlaces: 9 }, { message: "Amount must be a number" })
   @IsNotEmpty({ message: "Amount is required" })
   amount: number;
+
+  slippageBps?: number;
 }

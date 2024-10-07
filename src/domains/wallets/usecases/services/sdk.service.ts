@@ -827,7 +827,7 @@ export class SdkService {
             fromTokenAddress || "So11111111111111111111111111111111111111112",
             toTokenAddress || "So11111111111111111111111111111111111111112",
             Number(amount),
-            slippageBps
+            slippageBps? slippageBps : 100
           );
         
           console.log("Slippage (bps):", slippageBps);
