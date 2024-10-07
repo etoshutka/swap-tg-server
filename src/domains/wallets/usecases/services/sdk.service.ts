@@ -835,8 +835,8 @@ export class SdkService {
           //console.log("Slippage (bps):", slippageBps);
 
          
-          const txDetails = await txid.txid;
-          //const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
+          //const txDetails = await txid.txid;
+          const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
          
 
 
@@ -854,7 +854,7 @@ export class SdkService {
             type: TransactionType.SWAP,
             network: Network.SOL,
             status: TransactionStatus.PENDING,
-            hash: txid.txid,
+            hash: txDetails.transaction.signatures[0],
             fromAmount: Number(amount),
             fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
             toAmount: 0, // Нужно вычислить из результата транзакции, если возможно

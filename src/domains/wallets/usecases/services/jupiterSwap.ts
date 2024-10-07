@@ -14,7 +14,7 @@ export async function jupiterSwap(
     slippageBps: number
   ): Promise<{ txid: string; status: 'success' | 'error'; message: string }> {
     try {
-      const multiplier = inputMint === SOL_MINT ? 10**9 : 10**9;
+      const multiplier = inputMint === SOL_MINT ? 10**9 : 10**6;
       const adjustedAmount = Math.floor(amount * multiplier);
   
      
@@ -60,16 +60,16 @@ export async function jupiterSwap(
       });
   
     
-    //   const confirmation = await connection.confirmTransaction({
-    //     blockhash: latestBlockHash.blockhash,
-    //     lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-    //     signature: txid
-    //   }, 'confirmed');
+      const confirmation = await connection.confirmTransaction({
+        blockhash: latestBlockHash.blockhash,
+        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+        signature: txid
+      }, 'confirmed');
   
-    //   if (confirmation.value.err) {
-    //     console.error('Transaction failed:', confirmation.value.err);
-    //     return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
-    //   }
+      if (confirmation.value.err) {
+        console.error('Transaction failed:', confirmation.value.err);
+        return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
+      }
   
       console.log({ txid, status: 'success', message: 'Swap completed successfully' })
       return { txid, status: 'success', message: 'Swap completed successfully' };
