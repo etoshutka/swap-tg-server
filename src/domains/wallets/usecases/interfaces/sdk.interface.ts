@@ -126,7 +126,7 @@ export class SwapTokensParams {
   amount: string;
   fromAddress: string;
   fromPrivateKey: string;
-  slippageBps?: number;
+  // slippageBps?: number;
 }
 
 export class SwapTokensResult {
