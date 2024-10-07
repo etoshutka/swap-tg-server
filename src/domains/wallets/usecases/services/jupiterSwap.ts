@@ -17,26 +17,10 @@ export async function jupiterSwap(
       const multiplier = inputMint === SOL_MINT ? 10**9 : 10**6;
       const adjustedAmount = Math.floor(amount * multiplier);
   
-      console.log(`Requesting quote for ${adjustedAmount} ${inputMint} to ${outputMint}`);
+     
       const quoteResponse = await (
         await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
-      ).json();
-
-
-  
-      console.log('Quote received:', quoteResponse);
-
-      console.log('Jupiter quote request URL:', `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`);
-  
-      console.log('Requesting swap transaction');
-
-      console.log('Swap request payload:', JSON.stringify({
-        quoteResponse,
-        userPublicKey: wallet.publicKey.toString(),
-        wrapAndUnwrapSol: true,
-        dynamicComputeUnitLimit: true,
-        prioritizationFeeLamports: 'auto'
-      }, null, 2));
+      ).json();  
       
       const { swapTransaction } = await (
         await fetch('https://quote-api.jup.ag/v6/swap', {
@@ -55,27 +39,25 @@ export async function jupiterSwap(
         })
       ).json();
   
-      console.log('Swap transaction received');
+     
   
       const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
       var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
   
       transaction.sign([wallet.payer]);
-      console.log('Transaction after signing:', transaction);
+     
   
       const latestBlockHash = await connection.getLatestBlockhash();
   
-      console.log('Sending transaction');
+    
       const rawTransaction = transaction.serialize()
-      console.log('Serialized transaction:', rawTransaction.toString());
+      
       const txid = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: true,
         maxRetries: 5
       });
   
-      console.log(`Transaction sent. ID: ${txid}`);
-  
-      console.log('Waiting for transaction confirmation');
+    
     //   const confirmation = await connection.confirmTransaction({
     //     blockhash: latestBlockHash.blockhash,
     //     lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
@@ -87,10 +69,10 @@ export async function jupiterSwap(
     //     return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
     //   }
   
-      console.log('Transaction confirmed successfully');
+      
       return { txid, status: 'success', message: 'Swap completed successfully' };
     } catch (error) {
-      console.error('Error in jupiterSwap:', error);
+      
       return { txid: '', status: 'error', message: `Swap failed: ${error.message}` };
     }
   }

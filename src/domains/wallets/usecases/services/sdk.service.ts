@@ -35,9 +35,6 @@ export class SdkService {
     private readonly cmcService: CmcService,
     private readonly configService: ConfigService,
   ) {
-    console.log('TATUM_MAINNET_API_KEY:', this.configService.get("TATUM_MAINNET_API_KEY"));
-    console.log('TON_API_API_KEY:', this.configService.get("TON_API_API_KEY"));
-    console.log('TON_API_API_URL:', this.configService.get("TON_API_API_URL"));
     this.ethSdk = TatumEthSDK({
       apiKey: this.configService.get("TATUM_MAINNET_API_KEY"),
     });
@@ -204,7 +201,6 @@ export class SdkService {
    */
   async getWalletBalance(params: types.GetWalletBalanceParams): Promise<types.GetWalletBalanceResult> {
     try {
-      console.log('Getting balance for:', params);
       const tatumSdk = params.network === Network.TON ? undefined : await TatumSDK.init<Ethereum>({ apiKey: this.configService.get("TATUM_MAINNET_API_KEY"), network: TatumNetwork.ETHEREUM });
   
       let price: number = 0;
@@ -225,9 +221,6 @@ export class SdkService {
             balance_usd = balance * price;
             return { balance, balance_usd };
           case Network.TON:
-            console.log('Getting balance for:', params);
-            console.log('TON API URL:', this.configService.get("TON_API_API_URL"));
-            console.log('TON API Key:', this.configService.get("TON_API_API_KEY"));
             try {
               const address = Address.parse(params.address);
               const balance = await this.tonSecondSdk.getBalance(address);
@@ -236,22 +229,19 @@ export class SdkService {
               try {
                 price = (await this.tonSdk.rates.getRates({ tokens: [networkNativeSymbol[params.network]], currencies: ["USD"] })).rates.TON.prices.USD;
               } catch (error) {
-                console.error('Error fetching TON price:', error);
+
               }
               
               const balance_usd = balanceInTON * price;
               
-              console.log('TON balance info:', balanceInTON);
-              console.log('USD price info:', balance_usd);
+
               
               return { balance: balanceInTON, balance_usd };
             } catch (error) {
-              console.error('Error fetching TON account:', error);
               return { balance: 0, balance_usd: 0 };
             }
         }
     } catch (e) {
-      console.error('Error in getWalletBalance:', e);
       this.logger("getWalletBalance()").error(`Failed to get native ${networkNativeSymbol[params.network]} wallet balance: ` + e.message);
    
       return { balance: 0, balance_usd: 0 };
@@ -302,17 +292,17 @@ export class SdkService {
         };
         case Network.TON:
          try {
-        console.log('Fetching TON token balance for:', params.address, 'Contract:', params.contract);
+       
 
         const tonJettonPrice: GetTokenPriceResult = await this.cmcService.getTokenPrice({ address: params.contract });
-        console.log('Fetched token price:', tonJettonPrice);
+       
 
         const tonJettonBalance: JettonBalance = await this.tonSdk.accounts.getAccountJettonBalance(
           Address.parse(params.address), 
           Address.parse(params.contract), 
           { currencies: ["USD"] }
         );
-        console.log('Fetched jetton balance:', tonJettonBalance);
+       
 
         const balance = Number(tonJettonBalance.balance) / Math.pow(10, Number(tonJettonBalance.jetton.decimals));
         const balance_usd = balance * tonJettonPrice.price;
@@ -579,15 +569,7 @@ export class SdkService {
     try {
       const { network, fromTokenAddress, toTokenAddress, amount, fromAddress, fromPrivateKey } = params;
   
-      console.log('Swap Params:', JSON.stringify({
-        network,
-        fromTokenAddress,
-        toTokenAddress,
-        amount,
-        fromAddress,
-        fromPrivateKeyLength: fromPrivateKey ? fromPrivateKey.length : 'undefined'
-      }, null, 2));
-  
+       
       if (!fromPrivateKey) {
         throw new Error('fromPrivateKey is null or undefined');
       }
@@ -610,17 +592,17 @@ export class SdkService {
           const buyTokenAddress = toTokenAddress || nativeTokenAddress;
       
           const decimals: number = fromTokenAddress ? await sdk.erc20.decimals(fromTokenAddress) : 18;
-          console.log('Token decimals:', decimals);
+         
       
           // Log balance before swap
           const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
-          console.log(`Balance before swap: ${balanceBefore} ${nativeSymbol}`);
-          const balanceBeforeWei = BigInt(Math.floor(balanceBefore * 1e18));
-          console.log(`Balance before swap: ${balanceBeforeWei.toString()} wei`);
+         
+         
+         
       
           // Convert amount to wei (as a BigInt)
           const sellAmountWei = BigInt(Math.floor(Number(amount) * Number(10**decimals)));
-          console.log(`Calculated sell amount: ${sellAmountWei.toString()} wei`);
+         
       
           const priceParams = new URLSearchParams({
             chainId,
@@ -630,7 +612,7 @@ export class SdkService {
             taker: fromAddress,
           });
       
-          console.log('Price API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`);
+         
       
           const priceResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`, {
             method: 'GET',
@@ -648,7 +630,7 @@ export class SdkService {
           }
       
           const priceData = await priceResponse.json();
-          console.log('Price Data:', JSON.stringify(priceData, null, 2));
+         
       
           const quoteParams = new URLSearchParams({
             chainId,
@@ -658,7 +640,7 @@ export class SdkService {
             taker: fromAddress,
           });
       
-          console.log('Quote API Request URL:', `${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`);
+        
       
           const response = await fetch(`${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`, {
             method: 'GET',
@@ -669,27 +651,23 @@ export class SdkService {
             }
           });
       
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('0x API Quote Error:', errorText);
+          if (!response.ok) {        
             throw new Error(`HTTP error! status: ${response.status}`);
           }
       
           const quoteData = await response.json();
-          console.log('Quote Data:', JSON.stringify(quoteData, null, 2));
+        
       
           const gasLimit = priceData.gas;
           const gasPrice = Math.ceil(Number(priceData.gasPrice / 1_000_000_000)).toString();
-          const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
+         // const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
       
-          console.log(`Gas Limit: ${gasLimit.toString()}`);
-          console.log(`Gas Price: ${gasPrice.toString()} wei`);
-          console.log(`Total Gas Cost: ${totalGasCost.toString()} wei (${Number(totalGasCost) / 1e18} ${nativeSymbol})`);
+          
       
           let txResult;
       
           if (sellTokenAddress !== nativeTokenAddress) {
-            console.log('Setting approval for ERC20 token...');
+            
             if (quoteData.issues && quoteData.issues.allowance !== null) {
             const approveTx: any = await sdk.erc20.send.approveSignedTransaction({
               amount: amount,
@@ -701,15 +679,13 @@ export class SdkService {
                 gasPrice: gasPrice,
               },
             });
-            console.log('Approval transaction sent:', approveTx);
+           
           
             const approvalTransaction = await sdk.blockchain.getTransaction(approveTx.txId);
-            console.log('Approval transaction confirmed:', approvalTransaction);
+          
           }
       
-            console.log('Executing ERC20 token swap...');
-            console.log('Executing native token swap...');
-            txResult = await sdk.transaction.send.transferSignedTransaction({
+              txResult = await sdk.transaction.send.transferSignedTransaction({
               to: quoteData.transaction.to,
               amount: quoteData.transaction.value,
               data: quoteData.transaction.data,
@@ -732,7 +708,7 @@ export class SdkService {
             //   } : undefined,
             
           } else {
-            console.log('Executing native token swap...');
+          
             txResult = await sdk.transaction.send.transferSignedTransaction({
               to: quoteData.transaction.to,
               amount: amount,
@@ -745,11 +721,11 @@ export class SdkService {
             });
           }
       
-          console.log('Transaction Result:', JSON.stringify(txResult, null, 2));
+         
       
           // Log balance after swap
           const balanceAfter = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
-          console.log(`Balance after swap: ${balanceAfter} ${nativeSymbol}`);
+          
       
           // Получение цен токенов для конвертации в USD
           const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
@@ -778,6 +754,7 @@ export class SdkService {
           return ethresult;
 
         case Network.SOL:
+
           const apikey = this.configService.get("TATUM_MAINNET_API_KEY")
           const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/${apikey}`;
           const headers = {
@@ -816,33 +793,32 @@ export class SdkService {
         // Создаем соединение с использованием нашей функции RPC-запросов
         const connection = new Connection(tatumRpcUrl)
 
-        console.log('Testing Solana connection...');
-        try {
-          const blockHeight = await connection.getBlockHeight();
-          console.log('Current block height:', blockHeight);
-        } catch (error) {
-          console.error('Error connecting to Solana network:', error);
-          throw new Error(`Failed to connect to Solana network: ${error.message}`);
-        }
+        
+        // try {
+        //   const blockHeight = await connection.getBlockHeight();
+        //   console.log('Current block height:', blockHeight);
+        // } catch (error) {
+        //   console.error('Error connecting to Solana network:', error);
+        //   throw new Error(`Failed to connect to Solana network: ${error.message}`);
+        // }
 
 
-        console.log('Solana connection created');
+      
           
           let keypair;
           try {
             keypair = createSolanaKeypair(fromPrivateKey);
-            console.log('Solana Keypair created successfully');
+          
           } catch (error) {
-            console.error('Error creating Solana Keypair:', error);
+         
             throw new Error(`Failed to create Solana Keypair: ${error.message}`);
           }
 
           const walletsol = new Wallet(keypair);
-          console.log('Wallet created');
+        
 
           // Perform the swap
-          console.log('Initiating Jupiter swap...');
-    
+            
           
           const txid = await jupiterSwap(
             connection,
@@ -852,21 +828,21 @@ export class SdkService {
             Number(amount),
             100
           );
-          console.log('Jupiter swap completed. Transaction ID:', txid);
+        
           
-          console.log('Fetching transaction details...');
+         
           const txDetails = await txid.txid;
           //const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
-          console.log('Transaction details:', JSON.stringify(txDetails, null, 2));
+         
 
 
           // Get token prices for USD conversion
-          console.log('Fetching token prices...');
+          
           const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
             this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : "SOL" }),
             this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
           ]);
-          console.log('Token prices:', { fromTokenPriceSol, toTokenPriceSol });
+        
 
 
           // Prepare and return the result
@@ -888,22 +864,22 @@ export class SdkService {
             fee_usd: 0
           };
           
-          console.log('Swap result:', JSON.stringify(solresult, null, 2));
+        
           return solresult;
 
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
-          console.log('Factory created');
+        
   
           const tonVault = this.tonSecondSdk.open(await factory.getNativeVault());
-          console.log('TON Vault opened');
+        
   
           const fromToken = fromTokenAddress ? Asset.jetton(Address.parse(fromTokenAddress)) : Asset.native();
           const toToken = toTokenAddress ? Asset.jetton(Address.parse(toTokenAddress)) : Asset.native();
-          console.log('Tokens:', { fromToken: fromToken.toString(), toToken: toToken.toString() });
+          
   
           const pool = this.tonSecondSdk.open(await factory.getPool(PoolType.VOLATILE, [fromToken, toToken]));
-          console.log('Pool opened:', pool.address.toString());
+         
   
           if ((await pool.getReadinessStatus()) !== ReadinessStatus.READY) {
             throw new Error(`Pool (${fromToken}, ${toToken}) does not exist.`);
@@ -914,30 +890,27 @@ export class SdkService {
           }
   
           const amountIn = toNano(amount);
-          console.log('Amount in nano:', amountIn.toString());
+         
   
           // Create and sign the transaction
           const pair: KeyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
-          console.log('Key pair created successfully');
+         
   
           const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
-          console.log('Wallet created:', wallet.address.toString());
+         
   
           const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
           const seqno: number = await contract.getSeqno();
-          console.log('Contract opened, seqno:', seqno);
+         
   
           const transferId: string = uuid();
-          console.log('Transfer ID:', transferId);
+          
   
           // Create a Sender object
           const sender: Sender = {
             address: wallet.address,
             send: async (args: SenderArguments) => {
-              console.log('Sending transfer:', JSON.stringify(args, (key, value) =>
-                typeof value === 'bigint' ? value.toString() : value
-              ));
-              await contract.sendTransfer({
+                         await contract.sendTransfer({
                 seqno,
                 sendMode: SendMode.PAY_GAS_SEPARATELY,
                 secretKey: pair.secretKey,
@@ -950,28 +923,28 @@ export class SdkService {
                   })
                 ],
               });
-              console.log('Transfer sent');
+           
             }
           };
   
           // Use sendSwap method
           if (fromToken.toString() === Asset.native().toString()) {
-            console.log('Swapping TON to Jetton');
+           
             await tonVault.sendSwap(sender, {
               poolAddress: pool.address,
               amount: amountIn,
               gasAmount: toNano("0.25"),
             });
           } else {
-            console.log('Swapping Jetton to TON or another Jetton');
+           
             if (!fromTokenAddress) {
               throw new Error('fromTokenAddress is required for Jetton swap');
             }
             const jettonVault = this.tonSecondSdk.open(await factory.getJettonVault(Address.parse(fromTokenAddress)));
-            console.log('Jetton Vault opened:', jettonVault.address.toString());
+           
             const jettonRoot = this.tonSecondSdk.open(JettonRoot.createFromAddress(Address.parse(fromTokenAddress)));
             const jettonWallet = this.tonSecondSdk.open(await jettonRoot.getWallet(sender.address));
-            console.log('Jetton Wallet opened:', jettonWallet.address.toString());
+           
             await jettonWallet.sendTransfer(sender, toNano("0.3"), {
               amount: amountIn,
               destination: jettonVault.address,
@@ -1001,7 +974,7 @@ export class SdkService {
           const fromTokenPrice = await safeGetTokenPrice(fromTokenAddress, fromToken.toString());
           const toTokenPrice = await safeGetTokenPrice(toTokenAddress, toToken.toString());
       
-          console.log('Token prices:', { fromTokenPrice, toTokenPrice });
+         
   
           const result = {
             type: TransactionType.SWAP,
@@ -1021,7 +994,7 @@ export class SdkService {
             fee_usd: 0,
           };
   
-          console.log('Swap result:', JSON.stringify(result, null, 2));
+          
           return result;
   
         default:
