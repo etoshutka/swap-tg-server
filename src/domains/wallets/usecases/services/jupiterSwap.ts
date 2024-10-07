@@ -14,10 +14,14 @@ export async function jupiterSwap(
     slippageBps: number
   ): Promise<{ txid: string; status: 'success' | 'error'; message: string }> {
     try {
+      console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
+
       const multiplier = inputMint === SOL_MINT ? 10**9 : 10**6;
       const adjustedAmount = Math.floor(amount * multiplier);
+      console.log("Adjusted amount:", adjustedAmount);
+
   
-     
+      console.log("Fetching quote...");
       const quoteResponse = await (
         await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
       ).json();  

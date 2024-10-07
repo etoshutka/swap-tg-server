@@ -793,6 +793,7 @@ export class SdkService {
             return data.result;
           };
 
+        console.log("Creating connection");
         // Создаем соединение с использованием нашей функции RPC-запросов
         const connection = new Connection(tatumRpcUrl)
 
@@ -807,7 +808,8 @@ export class SdkService {
 
 
       
-          
+        console.log("Creating Solana Keypair");
+
           let keypair;
           try {
             keypair = createSolanaKeypair(fromPrivateKey);
@@ -816,6 +818,8 @@ export class SdkService {
          
             throw new Error(`Failed to create Solana Keypair: ${error.message}`);
           }
+
+          console.log("Creating Solana wallet");
 
           const walletsol = new Wallet(keypair);
         
@@ -834,7 +838,8 @@ export class SdkService {
         
           //console.log("Slippage (bps):", slippageBps);
 
-         
+          console.log("jupiterSwap result:", txid);
+
           const txDetails = await txid.txid;
           //const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
          
@@ -868,7 +873,8 @@ export class SdkService {
             fee_usd: 0
           };
           
-        
+          console.log("Final result:", solresult);
+
           return solresult;
 
         case Network.TON:
