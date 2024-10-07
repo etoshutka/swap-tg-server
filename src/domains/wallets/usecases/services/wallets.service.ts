@@ -588,9 +588,9 @@ export class WalletsService {
  */
   async swapTokens(params: types.SwapTokensParams): Promise<ServiceMethodResponseDto<TransactionModel>> {
     try {
-      const { wallet_id, from_token_id, to_token_id, amount, slippageBps } = params;
+      const { wallet_id, from_token_id, to_token_id, amount } = params;
   
-      console.log("Received params in swapTokens:", { wallet_id, from_token_id, to_token_id, amount, slippageBps });
+      console.log("Received params in swapTokens:", { wallet_id, from_token_id, to_token_id, amount });
   
       // Get wallet and tokens information
       const walletData = await this.getWallet({ id: wallet_id });
