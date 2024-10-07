@@ -182,5 +182,7 @@ export class SwapTokensParams {
   @IsNotEmpty({ message: "Amount is required" })
   amount: number;
 
+  @IsNumber()
+  @IsOptional()
   slippageBps?: number;
 }
