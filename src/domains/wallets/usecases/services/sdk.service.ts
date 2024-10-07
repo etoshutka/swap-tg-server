@@ -568,6 +568,8 @@ export class SdkService {
   async swapTokens(params: types.SwapTokensParams): Promise<types.SwapTokensResult> {
     try {
       const { network, fromTokenAddress, toTokenAddress, amount, fromAddress, fromPrivateKey, slippageBps } = params;
+
+      console.log("Received slippageBps:", slippageBps); 
   
        
       if (!fromPrivateKey) {
