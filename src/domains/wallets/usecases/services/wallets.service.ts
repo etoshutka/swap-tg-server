@@ -624,7 +624,7 @@ export class WalletsService {
         amount: amount.toString(),
         fromAddress: wallet.address,
         fromPrivateKey: wallet.network === Network.TON ? secrets.mnemonic : secrets.private_key,
-        slippageBps: slippageBps, 
+        slippageBps: 100, 
       });
   
       console.log("Swap result:", swapResult);
