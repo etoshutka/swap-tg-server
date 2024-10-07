@@ -58,7 +58,7 @@ export async function jupiterSwap(
         skipPreflight: true,
         maxRetries: 5
       });
-  
+      console.log('txid', txid)
     
       const confirmation = await connection.confirmTransaction({
         blockhash: latestBlockHash.blockhash,
