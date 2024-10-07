@@ -71,10 +71,10 @@ export async function jupiterSwap(
     //     return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
     //   }
   
-      
+      console.log({ txid, status: 'success', message: 'Swap completed successfully' })
       return { txid, status: 'success', message: 'Swap completed successfully' };
     } catch (error) {
-      
+      console.log(error)
       return { txid: '', status: 'error', message: `Swap failed: ${error.message}` };
     }
   }
