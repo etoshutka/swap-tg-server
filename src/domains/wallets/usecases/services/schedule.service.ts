@@ -335,12 +335,6 @@ export class ScheduleService {
                 break;
 
               case Network.SOL:
-      
-                const solPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ symbol: "SOL" }).catch(error => {
-                  console.error('Error getting SOL price:', error);
-                  return { price: 0, price_change_percentage: 0 };
-                });
-      
                 
                 let solSwap = await this.solSdk.blockchain.getTransaction(t.hash);
                 
@@ -364,6 +358,12 @@ export class ScheduleService {
                 }
       
                 if (isSolSwapEnded) {
+                  
+                  const solPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ symbol: "SOL" }).catch(error => {
+                    console.error('Error getting SOL price:', error);
+                    return { price: 0, price_change_percentage: 0 };
+                  });
+        
                   const fee = solSwap.meta.fee / 1_000_000_000;
       
                   const status = solSwap.meta.err ? TransactionStatus.FAILED : TransactionStatus.SUCCESS;
