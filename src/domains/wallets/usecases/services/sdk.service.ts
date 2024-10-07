@@ -567,9 +567,9 @@ export class SdkService {
    */
   async swapTokens(params: types.SwapTokensParams): Promise<types.SwapTokensResult> {
     try {
-      const { network, fromTokenAddress, toTokenAddress, amount, fromAddress, fromPrivateKey, slippageBps } = params;
+      const { network, fromTokenAddress, toTokenAddress, amount, fromAddress, fromPrivateKey } = params;
 
-      console.log("Received slippageBps:", slippageBps); 
+      // console.log("Received slippageBps:", slippageBps); 
   
        
       if (!fromPrivateKey) {
@@ -640,7 +640,7 @@ export class SdkService {
             sellToken: sellTokenAddress,
             sellAmount: sellAmountWei.toString(),
             taker: fromAddress,
-            slippageBps: slippageBps.toString(),
+            //slippageBps: slippageBps.toString(),
           });
       
         
@@ -832,7 +832,7 @@ export class SdkService {
             100
           );
         
-          console.log("Slippage (bps):", slippageBps);
+          //console.log("Slippage (bps):", slippageBps);
 
          
           const txDetails = await txid.txid;
