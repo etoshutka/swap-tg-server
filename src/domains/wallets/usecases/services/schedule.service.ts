@@ -343,13 +343,13 @@ export class ScheduleService {
       
                 
                 let solSwap = await this.solSdk.blockchain.getTransaction(t.hash);
-      
+
                 
                 let isSolSwapEnded: boolean = false;
                 let solAttempts = 0;
       
                 while (!isSolSwapEnded && solAttempts < 5) {
-                  solAttempts++;
+                  
       
                   
                   if (solSwap?.meta?.fee) {
@@ -359,6 +359,7 @@ export class ScheduleService {
       
                     await new Promise((resolve) => setTimeout(resolve, 10000));
                     solSwap = await this.solSdk.blockchain.getTransaction(t.hash);
+                    solAttempts++;
       
                   }
                 }
