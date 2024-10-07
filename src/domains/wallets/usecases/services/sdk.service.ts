@@ -631,7 +631,7 @@ export class SdkService {
       
           const priceData = await priceResponse.json();
          
-      
+
           const quoteParams = new URLSearchParams({
             chainId,
             buyToken: buyTokenAddress,
@@ -830,7 +830,8 @@ export class SdkService {
             slippageBps
           );
         
-          
+          console.log("Slippage (bps):", slippageBps);
+
          
           const txDetails = await txid.txid;
           //const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
