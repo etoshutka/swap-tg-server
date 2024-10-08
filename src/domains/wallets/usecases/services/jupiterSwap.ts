@@ -38,7 +38,7 @@ export async function jupiterSwap(
             wrapAndUnwrapSol: true,
             dynamicComputeUnitLimit: true,
             prioritizationFeeLamports: 'auto',
-            dynamicSlippage: { "maxBps": 300 },
+           // dynamicSlippage: { "maxBps": 300 },
           })
         })
       ).json();
