@@ -588,7 +588,7 @@ export class WalletsService {
  */
   async swapTokens(params: types.SwapTokensParams): Promise<ServiceMethodResponseDto<TransactionModel>> {
     try {
-      const { wallet_id, from_token_id, to_token_id, amount } = params;
+      const { wallet_id, from_token_id, to_token_id, amount, slippageBps } = params;
   
       console.log("Received params in swapTokens:", { wallet_id, from_token_id, to_token_id, amount });
   
@@ -624,7 +624,7 @@ export class WalletsService {
         amount: amount.toString(),
         fromAddress: wallet.address,
         fromPrivateKey: wallet.network === Network.TON ? secrets.mnemonic : secrets.private_key,
-        //slippageBps: 100, 
+        slippageBps: slippageBps, 
       });
   
       console.log("Swap result:", swapResult);
