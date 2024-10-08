@@ -278,100 +278,69 @@ export class ScheduleService {
     @Cron(CronExpression.EVERY_30_SECONDS)
     async swapProcessing(): Promise<void> {
       try {
-      
         const transactions: TransactionModel[] = await this.transactionRepo.find({ where: { type: TransactionType.SWAP, status: TransactionStatus.PENDING } });
-      
 
         for (const t of transactions) {
           const NETWORK: Network = t.network;
-      
-          
+    
           try {
             switch (t.network) {
               case Network.ETH:
               case Network.BSC:
-      
                 const isEth: boolean = NETWORK === Network.ETH;
                 const sdk: types.Sdk<Network.ETH | Network.BSC> = isEth ? this.ethSdk : this.bscSdk;
-
                 let transaction = await sdk.blockchain.getTransaction(t.hash);
-      
                 let isSwapEnded: boolean = false;
                 let attempts = 0;
 
                 while (!isSwapEnded && attempts < 5) {
                   attempts++;
-      
                   
                   if (transaction?.status !== undefined) {
-                    isSwapEnded = true;
-      
+                    isSwapEnded = true
                   } else {
-      
                     await new Promise((resolve) => setTimeout(resolve, 10000));
                     transaction = await sdk.blockchain.getTransaction(t.hash);
-      
                   }
                 }
-
                 if (isSwapEnded) {
                   const swapFee: number = (Number(transaction.gasPrice) / 1_000_000_000) * (Number(transaction.gasUsed) / 1_000_000_000);
-      
                   
                   const nativeTokenPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ symbol: networkNativeSymbol[NETWORK] }).catch(error => {
-      
                     return { price: 0, price_change_percentage: 0 };
                   });
-      
-                  
                   const swapStatus: TransactionStatus = transaction.status ? TransactionStatus.SUCCESS : TransactionStatus.FAILED;
       
-
                   await this.transactionRepo.update({ id: t.id }, { fee: swapFee, status: swapStatus, fee_usd: swapFee * nativeTokenPrice.price });
-      
-                } else {
-      
                 }
                 break;
 
               case Network.SOL:
-                
-                let solSwap = await this.solSdk.blockchain.getTransaction(t.hash);
-                
-                
+                let solSwap = await this.solSdk.blockchain.getTransaction(t.hash);               
                 let isSolSwapEnded: boolean = false;
                 let solAttempts = 0;
       
                 while (!isSolSwapEnded && solAttempts < 5) {
-                  solAttempts++;
-      
+                  solAttempts++;      
                   
                   if (solSwap?.meta?.fee) {
                     isSolSwapEnded = true;
       
-                  } else {
-      
+                  } else {      
                     await new Promise((resolve) => setTimeout(resolve, 10000));
-                    solSwap = await this.solSdk.blockchain.getTransaction(t.hash);
-      
+                    solSwap = await this.solSdk.blockchain.getTransaction(t.hash);      
                   }
-                }
-      
+                }     
                 if (isSolSwapEnded) {
-                  
                   const solPrice: cmcTypes.GetTokenPriceResult = await this.cmcService.getTokenPrice({ symbol: "SOL" }).catch(error => {
                     console.error('Error getting SOL price:', error);
                     return { price: 0, price_change_percentage: 0 };
                   });
         
-                  const fee = solSwap.meta.fee / 1_000_000_000;
-      
-                  const status = solSwap.meta.err ? TransactionStatus.FAILED : TransactionStatus.SUCCESS;
-      
+                  const fee = solSwap.meta.fee / 1_000_000_000;      
+                  const status = solSwap.meta.err ? TransactionStatus.FAILED : TransactionStatus.SUCCESS;      
                   const fee_usd = fee * solPrice.price;
-      
-      
-        
+                    
                   await this.transactionRepo.update(
                     { id: t.id },
                     {
@@ -381,12 +350,10 @@ export class ScheduleService {
                     },
                   );
             
-                } else {
-            
                 }
                 break;
 
-              case Network.TON:
+         case Network.TON:
     
         try {
             const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
