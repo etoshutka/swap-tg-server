@@ -759,27 +759,29 @@ export class SdkService {
         case Network.SOL:
 
           const apikey = this.configService.get("TATUM_MAINNET_API_KEY")
-          const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/${apikey}`;
-          const headers = {
-            'accept': 'application/json',
-            'content-type': 'application/json',
-            'x-api-key': this.configService.get("TATUM_MAINNET_API_KEY")
-          };
+          // const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/${apikey}`;
+          // const headers = {
+          //   'accept': 'application/json',
+          //   'content-type': 'application/json',
+          //   'x-api-key': this.configService.get("TATUM_MAINNET_API_KEY")
+          // };
+
+          const tatumRpcUrl = 'https://api.mainnet-beta.solana.com'
 
           
 
           // Функция для выполнения RPC-запросов
           const tatumRpcRequest = async (method: string, params: any[] = []) => {
-            const response = await fetch(tatumRpcUrl, {
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: method,
-                params: params
-              })
-            });
+          //   const response = await fetch(tatumRpcUrl, {
+          //     method: 'POST',
+          //     headers: headers,
+          //     body: JSON.stringify({
+          //       jsonrpc: '2.0',
+          //       id: 1,
+          //       method: method,
+          //       params: params
+          //     })
+          //   });
 
             if (!response.ok) {
               throw new Error(`HTTP error! status: ${response.status}`);
