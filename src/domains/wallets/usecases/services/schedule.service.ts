@@ -60,7 +60,7 @@ export class ScheduleService {
    * @name transferProcessing
    * @desc Transfer processing
    */
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron(CronExpression.EVERY_10_SECONDS)
   async transferProcessing(): Promise<void> {
     try {
       
@@ -84,7 +84,7 @@ export class ScheduleService {
               let isTransactionEnded: boolean = false;
               let attempts = 0;
 
-              while (!isTransactionEnded && attempts < 5) {
+              while (!isTransactionEnded || attempts < 5) {
                 attempts++;
       
                 
@@ -132,7 +132,7 @@ export class ScheduleService {
               let isSolTransactionEnded: boolean = false;
               let solAttempts = 0;
     
-              while (!isSolTransactionEnded && solAttempts < 5) {
+              while (!isSolTransactionEnded || solAttempts < 5) {
                 solAttempts++;
             
                 
@@ -275,7 +275,7 @@ export class ScheduleService {
        * @name swapProcessing
        * @desc Swap processing
        */
-    @Cron(CronExpression.EVERY_30_SECONDS)
+    @Cron(CronExpression.EVERY_10_SECONDS)
     async swapProcessing(): Promise<void> {
       try {
         const transactions: TransactionModel[] = await this.transactionRepo.find({ where: { type: TransactionType.SWAP, status: TransactionStatus.PENDING } });
@@ -293,7 +293,7 @@ export class ScheduleService {
                 let isSwapEnded: boolean = false;
                 let attempts = 0;
 
-                while (!isSwapEnded && attempts < 5) {
+                while (!isSwapEnded || attempts < 5) {
                   attempts++;
                   
                   if (transaction?.status !== undefined) {
@@ -320,7 +320,7 @@ export class ScheduleService {
                 let isSolSwapEnded: boolean = false;
                 let solAttempts = 0;
       
-                while (!isSolSwapEnded && solAttempts < 5) {
+                while (!isSolSwapEnded || solAttempts < 5) {
                   solAttempts++;      
                   
                   if (solSwap?.meta?.fee) {
