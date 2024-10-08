@@ -6,82 +6,97 @@ import bs58 from 'bs58';
 const USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 
 export async function jupiterSwap(
-    connection: Connection,
-    wallet: Wallet,
-    inputMint: string,
-    outputMint: string,
-    amount: number,
-    slippageBps: number
-  ): Promise<{ txid: string; status: 'success' | 'error'; message: string }> {
-    try {
-      console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
+  connection: Connection,
+  wallet: Wallet,
+  inputMint: string,
+  outputMint: string,
+  amount: number,
+  slippageBps: number,
+  tatumApiKey: string
+): Promise<{ txid: string; status: 'success' | 'error'; message: string }> {
+  try {
+    console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
 
-      const multiplier = inputMint === USDT ? 10**6 : 10**9;
-      const adjustedAmount = Math.floor(amount * multiplier);
-      console.log("Adjusted amount:", adjustedAmount);
+    const multiplier = inputMint === USDT ? 10**6 : 10**9;
+    const adjustedAmount = Math.floor(amount * multiplier);
+    console.log("Adjusted amount:", adjustedAmount);
 
-  
-      console.log("Fetching quote...");
-      const quoteResponse = await (
-        await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
-      ).json();  
-      console.log("quoteRespone", quoteResponse)
-      const { swapTransaction } = await (
-        await fetch('https://quote-api.jup.ag/v6/swap', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            quoteResponse,
-            userPublicKey: wallet.publicKey.toString(),
-            wrapAndUnwrapSol: true,
-            dynamicComputeUnitLimit: true,
-            prioritizationFeeLamports: 'auto',
-            dynamicSlippage: { "maxBps": slippageBps },
-          })
+    console.log("Fetching quote...");
+    const quoteResponse = await (
+      await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
+    ).json();  
+    console.log("quoteResponse", quoteResponse);
+
+    const { swapTransaction } = await (
+      await fetch('https://quote-api.jup.ag/v6/swap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          quoteResponse,
+          userPublicKey: wallet.publicKey.toString(),
+          wrapAndUnwrapSol: true,
+          dynamicComputeUnitLimit: true,
+          prioritizationFeeLamports: 'auto',
+          dynamicSlippage: { "maxBps": slippageBps },
         })
-      ).json();
+      })
+    ).json();
 
-      console.log("swapTransaction", swapTransaction)
-  
-     
-  
-      const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
-      var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
-  
-      transaction.sign([wallet.payer]);
-     
-  
-      const latestBlockHash = await connection.getLatestBlockhash();
-  
+    console.log("swapTransaction", swapTransaction);
+
+    const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
+    var transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+
+    transaction.sign([wallet.payer]);
+
+    const latestBlockHash = await connection.getLatestBlockhash();
+
+    const rawTransaction = transaction.serialize()
     
-      const rawTransaction = transaction.serialize()
-      
-      const txid = await connection.sendRawTransaction(rawTransaction, {
-        skipPreflight: true,
-        maxRetries: 2
-      });
-  
-    
-      const confirmation = await connection.confirmTransaction({
-        blockhash: latestBlockHash.blockhash,
-        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-        signature: txid
-      }, 'confirmed');
-  
-      if (confirmation.value.err) {
-        console.error('Transaction failed:', confirmation.value.err);
-        return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
-      }
-  
-      console.log({ txid, status: 'success', message: 'Swap completed successfully' })
-      return { txid, status: 'success', message: 'Swap completed successfully' };
-    } catch (error) {
-      console.log(error)
-      return { txid: '', status: 'error', message: `Swap failed: ${error.message}` };
+    const txid = await connection.sendRawTransaction(rawTransaction, {
+      skipPreflight: true,
+      maxRetries: 2
+    });
+
+    // Подтверждение транзакции с использованием API Tatum
+    const confirmationResponse = await confirmTransactionTatum(txid, tatumApiKey);
+
+    if (confirmationResponse.failed) {
+      console.error('Transaction failed:', confirmationResponse.reason);
+      return { txid, status: 'error', message: `Transaction failed: ${confirmationResponse.reason}` };
     }
+
+    console.log({ txid, status: 'success', message: 'Swap completed and confirmed successfully' });
+    return { txid, status: 'success', message: 'Swap completed and confirmed successfully' };
+  } catch (error) {
+    console.log(error);
+    return { txid: '', status: 'error', message: `Swap failed: ${error.message}` };
   }
+}
+
+async function confirmTransactionTatum(txid: string, apiKey: string): Promise<any> {
+const options = {
+  method: 'POST',
+  headers: {
+    accept: 'application/json',
+    'content-type': 'application/json',
+    'x-api-key': apiKey
+  },
+  body: JSON.stringify({ txHash: txid })
+};
+
+try {
+  const response = await fetch('https://api.tatum.io/v3/solana/broadcast/confirm', options);
+  const result = await response.json();
+  console.log('Tatum confirmation response:', result);
+  return result;
+} catch (error) {
+  console.error('Error confirming transaction with Tatum:', error);
+  throw error;
+}
+}
 
 export function createSolanaKeypair(privateKey: string): Keypair {
     let secretKey: Uint8Array;

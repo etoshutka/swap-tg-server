@@ -758,108 +758,91 @@ export class SdkService {
 
         case Network.SOL:
 
-          const apikey = this.configService.get("TATUM_MAINNET_API_KEY")
-          const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/${apikey}`;
-          const headers = {
-            'accept': 'application/json',
-            'content-type': 'application/json',
-            'x-api-key': this.configService.get("TATUM_MAINNET_API_KEY")
-          };
-
-          
-
-          // Функция для выполнения RPC-запросов
-          const tatumRpcRequest = async (method: string, params: any[] = []) => {
-            const response = await fetch(tatumRpcUrl, {
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: method,
-                params: params
-              })
-            });
-
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            if (data.error) {
-              throw new Error(`RPC error: ${data.error.message}`);
-            }
-
-            return data.result;
-          };
-
+        const apikey = this.configService.get("TATUM_MAINNET_API_KEY");
+        const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/${apikey}`;
+        const headers = {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'x-api-key': apikey
+        };
+      
+        // Функция для выполнения RPC-запросов
+        const tatumRpcRequest = async (method: string, params: any[] = []) => {
+          const response = await fetch(tatumRpcUrl, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: method,
+              params: params
+            })
+          });
+      
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+      
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(`RPC error: ${data.error.message}`);
+          }
+      
+          return data.result;
+        };
+      
         console.log("Creating connection");
-        // Создаем соединение с использованием нашей функции RPC-запросов
-        const connection = new Connection(tatumRpcUrl)
-
-        
-        // try {
-        //   const blockHeight = await connection.getBlockHeight();
-        //   console.log('Current block height:', blockHeight);
-        // } catch (error) {
-        //   console.error('Error connecting to Solana network:', error);
-        //   throw new Error(`Failed to connect to Solana network: ${error.message}`);
-        // }
-
-
+        const connection = new Connection(tatumRpcUrl);
       
         console.log("Creating Solana Keypair");
-
-          let keypair;
-          try {
-            keypair = createSolanaKeypair(fromPrivateKey);
-          
-          } catch (error) {
-         
-            throw new Error(`Failed to create Solana Keypair: ${error.message}`);
-          }
-
-          console.log("Creating Solana wallet");
-
-          const walletsol = new Wallet(keypair);
-        
-
-          // Perform the swap
-            
-          
-          const txid = await jupiterSwap(
+        let keypair;
+        try {
+          keypair = createSolanaKeypair(fromPrivateKey);
+        } catch (error) {
+          throw new Error(`Failed to create Solana Keypair: ${error.message}`);
+        }
+      
+        console.log("Creating Solana wallet");
+        const walletsol = new Wallet(keypair);
+      
+        // Perform the swap
+        try {
+          const swapResult = await jupiterSwap(
             connection,
             walletsol,
             fromTokenAddress || "So11111111111111111111111111111111111111112",
             toTokenAddress || "So11111111111111111111111111111111111111112",
             Number(amount),
-            slippageBps
+            slippageBps,
+            apikey
           );
-        
-          //console.log("Slippage (bps):", slippageBps);
-
-          console.log("jupiterSwap result:", txid);
-
-          const txDetails = await txid.txid;
-          //const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
-         
-
-
+      
+          console.log("jupiterSwap result:", swapResult);
+      
+          if (swapResult.status === 'error') {
+            throw new Error(swapResult.message);
+          }
+      
+          // Confirm the transaction using Tatum API
+          const confirmationResult = await confirmTransactionTatum(swapResult.txid, apikey);
+          console.log("Transaction confirmation result:", confirmationResult);
+      
+          if (confirmationResult.failed) {
+            throw new Error(`Transaction failed: ${confirmationResult.reason}`);
+          }
+      
           // Get token prices for USD conversion
-          
           const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
             this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : "SOL" }),
             this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
           ]);
-        
-
-
+      
           // Prepare and return the result
           const solresult = {
             type: TransactionType.SWAP,
             network: Network.SOL,
-            status: TransactionStatus.PENDING,
-            hash: txid.txid,
+            status: TransactionStatus.SUCCESS,
+            hash: swapResult.txid,
             fromAmount: Number(amount),
             fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
             toAmount: 0, // Нужно вычислить из результата транзакции, если возможно
@@ -869,13 +852,39 @@ export class SdkService {
             currency: "SOL",
             fromCurrency: fromTokenAddress || "SOL",
             toCurrency: toTokenAddress || "SOL",
-            fee: 0,
-            fee_usd: 0
+            fee: confirmationResult.fee || 0,
+            fee_usd: (confirmationResult.fee || 0) * fromTokenPriceSol.price
           };
           
           console.log("Final result:", solresult);
-
           return solresult;
+      
+        } catch (error) {
+          console.error("Swap failed:", error);
+          throw new Error(`Swap failed: ${error.message}`);
+        }
+      
+      async function confirmTransactionTatum(txid: string, apiKey: string): Promise<any> {
+        const options = {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+            'x-api-key': apiKey
+          },
+          body: JSON.stringify({ txHash: txid })
+        };
+      
+        try {
+          const response = await fetch('https://api.tatum.io/v3/solana/broadcast/confirm', options);
+          const result = await response.json();
+          console.log('Tatum confirmation response:', result);
+          return result;
+        } catch (error) {
+          console.error('Error confirming transaction with Tatum:', error);
+          throw error;
+        }
+      }
 
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
