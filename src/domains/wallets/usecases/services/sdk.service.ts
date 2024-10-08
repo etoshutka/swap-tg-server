@@ -842,8 +842,8 @@ export class SdkService {
 
           console.log("jupiterSwap result:", txid);
 
-          //const txDetails = await txid.txid;
-          const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
+         // const txDetails = await txid.txid;
+         // const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
          
 
 
