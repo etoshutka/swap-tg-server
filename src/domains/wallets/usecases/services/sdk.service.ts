@@ -612,6 +612,7 @@ export class SdkService {
             sellToken: sellTokenAddress,
             sellAmount: sellAmountWei.toString(),
             taker: fromAddress,
+            slippageBps: slippageBps.toString(),
           });
       
          
