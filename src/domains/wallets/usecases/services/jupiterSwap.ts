@@ -35,9 +35,9 @@ export async function jupiterSwap(
           body: JSON.stringify({
             quoteResponse,
             userPublicKey: wallet.publicKey.toString(),
-            // wrapAndUnwrapSol: true,
-           // dynamicComputeUnitLimit: true,
-          // prioritizationFeeLamports: 'auto',
+            wrapAndUnwrapSol: true,
+            dynamicComputeUnitLimit: true,
+            prioritizationFeeLamports: 'auto',
             dynamicSlippage: { "maxBps": slippageBps },
           })
         })
@@ -64,16 +64,16 @@ export async function jupiterSwap(
       });
   
     
-      // const confirmation = await connection.confirmTransaction({
-      //   blockhash: latestBlockHash.blockhash,
-      //   lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-      //   signature: txid
-      // }, 'confirmed');
+      const confirmation = await connection.confirmTransaction({
+        blockhash: latestBlockHash.blockhash,
+        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+        signature: txid
+      }, 'confirmed');
   
-      // if (confirmation.value.err) {
-      //   console.error('Transaction failed:', confirmation.value.err);
-      //   return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
-      // }
+      if (confirmation.value.err) {
+        console.error('Transaction failed:', confirmation.value.err);
+        return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
+      }
   
       console.log({ txid, status: 'success', message: 'Swap completed successfully' })
       return { txid, status: 'success', message: 'Swap completed successfully' };
