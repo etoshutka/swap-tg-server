@@ -84,7 +84,7 @@ const options = {
     'content-type': 'application/json',
     'x-api-key': apiKey
   },
-  body: JSON.stringify({ txHash: txid })
+  body: JSON.stringify({ txHash: txid, txData: txid })
 };
 
 try {
