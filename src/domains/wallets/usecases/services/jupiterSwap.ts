@@ -3,7 +3,7 @@ import fetch from 'cross-fetch';
 import { Wallet } from '@project-serum/anchor';
 import bs58 from 'bs58';
 
-const SOL_MINT = "So11111111111111111111111111111111111111112";
+const USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 
 export async function jupiterSwap(
     connection: Connection,
@@ -16,7 +16,7 @@ export async function jupiterSwap(
     try {
       console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
 
-      const multiplier = inputMint === SOL_MINT ? 10**9 : 10**6;
+      const multiplier = inputMint === USDT ? 10**6 : 10**9;
       const adjustedAmount = Math.floor(amount * multiplier);
       console.log("Adjusted amount:", adjustedAmount);
 
