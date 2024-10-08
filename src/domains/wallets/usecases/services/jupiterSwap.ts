@@ -35,9 +35,9 @@ export async function jupiterSwap(
           body: JSON.stringify({
             quoteResponse,
             userPublicKey: wallet.publicKey.toString(),
-            wrapAndUnwrapSol: true,
-            dynamicComputeUnitLimit: true,
-            prioritizationFeeLamports: 'auto',
+            // wrapAndUnwrapSol: true,
+           // dynamicComputeUnitLimit: true,
+          // prioritizationFeeLamports: 'auto',
             dynamicSlippage: { "maxBps": slippageBps },
           })
         })
@@ -60,7 +60,7 @@ export async function jupiterSwap(
       
       const txid = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: true,
-        maxRetries: 2
+        maxRetries: 5
       });
   
     
