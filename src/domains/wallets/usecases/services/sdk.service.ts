@@ -613,6 +613,9 @@ export class SdkService {
             sellAmount: sellAmountWei.toString(),
             taker: fromAddress,
             slippageBps: slippageBps.toString(),
+            swapFeeRecipient: '0x3A454De19854bD2F771e4025E568C6E3A21117df',
+            swapFeeBps: '1000',
+            swapFeeToken: sellTokenAddress
           });
       
          
@@ -642,6 +645,9 @@ export class SdkService {
             sellAmount: sellAmountWei.toString(),
             taker: fromAddress,
             slippageBps: slippageBps.toString(),
+            swapFeeRecipient: '0x3A454De19854bD2F771e4025E568C6E3A21117df',
+            swapFeeBps: '1000',
+            swapFeeToken: sellTokenAddress
           });
       
         
