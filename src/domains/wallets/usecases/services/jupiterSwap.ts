@@ -11,7 +11,8 @@ export async function jupiterSwap(
     inputMint: string,
     outputMint: string,
     amount: number,
-    slippageBps: number
+    slippageBps: number,
+    platformFeeBps: number,
   ): Promise<{ txid: string; status: 'success' | 'error'; message: string }> {
     try {
       console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
@@ -23,7 +24,7 @@ export async function jupiterSwap(
   
       console.log("Fetching quote...");
       const quoteResponse = await (
-        await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}`)
+        await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}&platformFeeBps=${platformFeeBps}`)
       ).json();  
       console.log("quoteRespone", quoteResponse)
       const { swapTransaction } = await (
@@ -39,6 +40,7 @@ export async function jupiterSwap(
             dynamicComputeUnitLimit: true,
             prioritizationFeeLamports: 'auto',
             dynamicSlippage: { "maxBps": slippageBps },
+            feeAccount: '28yJZ3zGxvPtUcc6ZmhNCgUZZVYad8mWMbGjxoAoe4hA',
           })
         })
       ).json();
@@ -85,21 +87,16 @@ export async function jupiterSwap(
 
 export function createSolanaKeypair(privateKey: string): Keypair {
     let secretKey: Uint8Array;
-  
-    // Проверяем, является ли privateKey строкой в формате base58
+
     if (/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(privateKey)) {
-      // Если да, декодируем его из base58
-      secretKey = bs58.decode(privateKey);
+          secretKey = bs58.decode(privateKey);
     } else {
-      // Если нет, пробуем интерпретировать его как hex строку
       try {
         secretKey = Buffer.from(privateKey, 'hex');
       } catch (error) {
         throw new Error(`Invalid private key format: ${error.message}`);
       }
     }
-  
-    // Проверяем длину секретного ключа
     if (secretKey.length !== 64) {
       throw new Error(`Invalid secret key length. Expected 64 bytes, got ${secretKey.length}`);
     }
