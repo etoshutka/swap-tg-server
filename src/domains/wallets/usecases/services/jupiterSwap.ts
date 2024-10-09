@@ -21,7 +21,7 @@ export async function jupiterSwap(
       // Define the referral account public key (obtained from the referral dashboard)
       const referralAccountPublicKey = new PublicKey("CXEfB9wmGqyLayo1Byg5WX7MyBqadxK6qStJkopC8YQw");
 
-      const inputMintPublicKey = new PublicKey(inputMint);
+      const inputMintPublicKey = new PublicKey(USDT);
 
 
       const [feeAccount] = await PublicKey.findProgramAddressSync(
