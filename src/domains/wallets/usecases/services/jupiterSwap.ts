@@ -41,7 +41,7 @@ export async function jupiterSwap(
   
       console.log("Fetching quote...");
       const quoteResponse = await (
-        await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}&platformFeeBps=${platformFeeBps}`)
+        await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${adjustedAmount}&slippageBps=${slippageBps}&swapMode=ExactIn&platformFeeBps=${platformFeeBps}`)
       ).json();  
       console.log("quoteRespone", quoteResponse)
       const { swapTransaction } = await (
