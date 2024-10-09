@@ -19,7 +19,7 @@ export async function jupiterSwap(
 
 
       // Define the referral account public key (obtained from the referral dashboard)
-      const referralAccountPublicKey = new PublicKey("CCdnLyKZYNWQ9hworD5pdrL1NwWaYPFYJwQ3WDmMvKRF");
+      const referralAccountPublicKey = new PublicKey("CXEfB9wmGqyLayo1Byg5WX7MyBqadxK6qStJkopC8YQw");
 
       const inputMintPublicKey = new PublicKey(outputMint);
 
