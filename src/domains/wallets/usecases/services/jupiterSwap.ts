@@ -20,7 +20,7 @@ export async function jupiterSwap(
       const feeRecipientPublicKey = new PublicKey("28yJZ3zGxvPtUcc6ZmhNCgUZZVYad8mWMbGjxoAoe4hA");
 
       // Define the referral account public key (obtained from the referral dashboard)
-      const referralAccountPublicKey = new PublicKey("CXEfB9wmGqyLayo1Byg5WX7MyBqadxK6qStJkopC8YQw");
+      const referralAccountPublicKey = new PublicKey("CCdnLyKZYNWQ9hworD5pdrL1NwWaYPFYJwQ3WDmMvKRF");
 
       const inputMintPublicKey = new PublicKey(inputMint);
 
@@ -31,7 +31,7 @@ export async function jupiterSwap(
           referralAccountPublicKey.toBuffer(),
           inputMintPublicKey.toBuffer(),
         ],
-        new PublicKey("CCdnLyKZYNWQ9hworD5pdrL1NwWaYPFYJwQ3WDmMvKRF")
+        new PublicKey("REFER4ZgmyYx9c6He5XfaTMiGfdLwRnkV4RPp9t9iF3")
       );
 
       const multiplier = inputMint === USDT ? 10**6 : 10**9;
