@@ -23,7 +23,10 @@ export async function jupiterSwap(
       // Define the referral account public key (obtained from the referral dashboard)
       const referralAccountPublicKey = new PublicKey("CXEfB9wmGqyLayo1Byg5WX7MyBqadxK6qStJkopC8YQw");
 
-      const inputMintPublicKey = new PublicKey(SOL);
+      
+      const inputMintPublicKey = inputMint === SOL ? 
+      new PublicKey(SOL) : outputMint === SOL ? 
+      new PublicKey(SOL) : new PublicKey(USDT); // vremeno
 
 
       const [feeAccount] = await PublicKey.findProgramAddressSync(
