@@ -766,14 +766,14 @@ export class SdkService {
         case Network.SOL:
 
           const apikey = this.configService.get("TATUM_MAINNET_API_KEY")
-          // const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/${apikey}`;
-          // const headers = {
-          //   'accept': 'application/json',
-          //   'content-type': 'application/json',
-          //   'x-api-key': this.configService.get("TATUM_MAINNET_API_KEY")
-          // };
+          const tatumRpcUrl = `https://api.tatum.io/v3/blockchain/node/solana-mainnet/${apikey}`;
+          const headers = {
+            'accept': 'application/json',
+            'content-type': 'application/json',
+            'x-api-key': this.configService.get("TATUM_MAINNET_API_KEY")
+          };
 
-          const tatumRpcUrl = 'https://api.mainnet-beta.solana.com'
+          //const tatumRpcUrl = 'https://api.mainnet-beta.solana.com'
 
           
 
