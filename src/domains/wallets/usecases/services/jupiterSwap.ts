@@ -17,7 +17,6 @@ export async function jupiterSwap(
     try {
       console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
 
-      const feeRecipientPublicKey = new PublicKey("28yJZ3zGxvPtUcc6ZmhNCgUZZVYad8mWMbGjxoAoe4hA");
 
       // Define the referral account public key (obtained from the referral dashboard)
       const referralAccountPublicKey = new PublicKey("CCdnLyKZYNWQ9hworD5pdrL1NwWaYPFYJwQ3WDmMvKRF");
@@ -60,7 +59,7 @@ export async function jupiterSwap(
                autoMultiplier: 2,
              },
             dynamicSlippage: { "maxBps": slippageBps },
-           // feeAccount
+            feeAccount
           })
         })
       ).json();
@@ -76,6 +75,7 @@ export async function jupiterSwap(
      
   
       const latestBlockHash = await connection.getLatestBlockhash();
+      console.log('latestBlockHash', latestBlockHash)
   
     
       const rawTransaction = transaction.serialize()
@@ -86,11 +86,11 @@ export async function jupiterSwap(
       });
   
     
-      // const confirmation = await connection.confirmTransaction({
-      //   blockhash: latestBlockHash.blockhash,
-      //   lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-      //   signature: txid
-      // }, 'confirmed');
+       await connection.confirmTransaction({
+        blockhash: latestBlockHash.blockhash,
+        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+        signature: txid
+      }, 'confirmed');
   
       // if (confirmation.value.err) {
       //   console.error('Transaction failed:', confirmation.value.err);
