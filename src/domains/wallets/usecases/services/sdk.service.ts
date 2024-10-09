@@ -843,7 +843,7 @@ export class SdkService {
             toTokenAddress || "So11111111111111111111111111111111111111112",
             Number(amount),
             slippageBps,
-            1000 // platformFeeBps (10%)
+            100 // platformFeeBps (1%)
           );
         
           //console.log("Slippage (bps):", slippageBps);
