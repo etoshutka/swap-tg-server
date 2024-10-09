@@ -60,7 +60,7 @@ export async function jupiterSwap(
                autoMultiplier: 2,
              },
             dynamicSlippage: { "maxBps": slippageBps },
-            feeAccount
+           // feeAccount
           })
         })
       ).json();
