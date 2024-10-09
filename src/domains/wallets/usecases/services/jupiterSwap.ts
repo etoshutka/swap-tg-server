@@ -4,6 +4,8 @@ import { Wallet } from '@project-serum/anchor';
 import bs58 from 'bs58';
 
 const USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
+const SOL = "So11111111111111111111111111111111111111112";
+
 
 export async function jupiterSwap(
     connection: Connection,
@@ -21,7 +23,7 @@ export async function jupiterSwap(
       // Define the referral account public key (obtained from the referral dashboard)
       const referralAccountPublicKey = new PublicKey("CXEfB9wmGqyLayo1Byg5WX7MyBqadxK6qStJkopC8YQw");
 
-      const inputMintPublicKey = new PublicKey(USDT);
+      const inputMintPublicKey = new PublicKey(SOL);
 
 
       const [feeAccount] = await PublicKey.findProgramAddressSync(
