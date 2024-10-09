@@ -807,13 +807,13 @@ export class SdkService {
         const connection = new Connection(tatumRpcUrl)
 
         
-        // try {
-        //   const blockHeight = await connection.getBlockHeight();
-        //   console.log('Current block height:', blockHeight);
-        // } catch (error) {
-        //   console.error('Error connecting to Solana network:', error);
-        //   throw new Error(`Failed to connect to Solana network: ${error.message}`);
-        // }
+        try {
+          const blockHeight = await connection.getBlockHeight();
+          console.log('Current block height:', blockHeight);
+        } catch (error) {
+          console.error('Error connecting to Solana network:', error);
+          throw new Error(`Failed to connect to Solana network: ${error.message}`);
+        }
 
 
       
