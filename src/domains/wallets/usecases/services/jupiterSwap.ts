@@ -86,11 +86,11 @@ export async function jupiterSwap(
       });
   
     
-       await connection.confirmTransaction({
-        blockhash: latestBlockHash.blockhash,
-        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-        signature: txid
-      }, 'confirmed');
+      //  await connection.confirmTransaction({
+      //   blockhash: latestBlockHash.blockhash,
+      //   lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+      //   signature: txid
+      // }, 'confirmed');
   
       // if (confirmation.value.err) {
       //   console.error('Transaction failed:', confirmation.value.err);
