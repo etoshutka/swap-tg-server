@@ -18,6 +18,22 @@ export async function jupiterSwap(
       console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
 
       const feeRecipientPublicKey = new PublicKey("28yJZ3zGxvPtUcc6ZmhNCgUZZVYad8mWMbGjxoAoe4hA");
+
+      // Define the referral account public key (obtained from the referral dashboard)
+      const referralAccountPublicKey = new PublicKey("CCdnLyKZYNWQ9hworD5pdrL1NwWaYPFYJwQ3WDmMvKRF");
+
+      const inputMintPublicKey = new PublicKey(inputMint);
+
+
+      const [feeAccount] = await PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("referral_ata"),
+          referralAccountPublicKey.toBuffer(),
+          inputMintPublicKey.toBuffer(),
+        ],
+        new PublicKey("CXEfB9wmGqyLayo1Byg5WX7MyBqadxK6qStJkopC8YQw")
+      );
+
       const multiplier = inputMint === USDT ? 10**6 : 10**9;
       const adjustedAmount = Math.floor(amount * multiplier);
       console.log("Adjusted amount:", adjustedAmount);
@@ -41,7 +57,7 @@ export async function jupiterSwap(
             dynamicComputeUnitLimit: true,
             prioritizationFeeLamports: 'auto',
             dynamicSlippage: { "maxBps": slippageBps },
-            feeAccount: '28yJZ3zGxvPtUcc6ZmhNCgUZZVYad8mWMbGjxoAoe4hA',
+            feeAccount
           })
         })
       ).json();
