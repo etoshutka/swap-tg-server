@@ -41,7 +41,7 @@ export async function jupiterSwap(
             dynamicComputeUnitLimit: true,
             prioritizationFeeLamports: 'auto',
             dynamicSlippage: { "maxBps": slippageBps },
-            feeAccount: feeRecipientPublicKey.toString(),
+            feeAccount: '28yJZ3zGxvPtUcc6ZmhNCgUZZVYad8mWMbGjxoAoe4hA',
           })
         })
       ).json();
