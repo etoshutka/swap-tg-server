@@ -55,7 +55,10 @@ export async function jupiterSwap(
             userPublicKey: wallet.publicKey.toString(),
             wrapAndUnwrapSol: true,
             dynamicComputeUnitLimit: true,
-            prioritizationFeeLamports: 'auto',
+            //prioritizationFeeLamports: 'auto',
+             prioritizationFeeLamports: {
+               autoMultiplier: 2,
+             },
             dynamicSlippage: { "maxBps": slippageBps },
             feeAccount
           })
