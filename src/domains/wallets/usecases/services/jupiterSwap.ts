@@ -80,7 +80,7 @@ async function transactionSenderAndConfirmationWaiter({
 
   // Use promiseRetry for getting transaction info
   try {
-    await promiseRetry(
+    const confirmedTransaction = await promiseRetry(
       async (retry, number) => {
         const response = await connection.getTransaction(txid, {
           commitment: "confirmed",
@@ -90,6 +90,7 @@ async function transactionSenderAndConfirmationWaiter({
           if (number === 5) {
             throw new Error("Transaction not found after all retries");
           }
+          await wait(2000); // Add a delay before retrying
           retry(new Error("Transaction not found"));
         }
         return response;
@@ -97,9 +98,16 @@ async function transactionSenderAndConfirmationWaiter({
       {
         retries: 5,
         minTimeout: 1000,
+        maxTimeout: 5000,
       }
     );
-    return txid;
+
+    if (confirmedTransaction && !confirmedTransaction.meta?.err) {
+      return txid;
+    } else {
+      console.warn("Transaction confirmed but may have failed:", confirmedTransaction?.meta?.err);
+      return null;
+    }
   } catch (error) {
     console.error("Failed to get transaction after retries:", error);
     return null;
