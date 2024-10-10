@@ -773,7 +773,7 @@ export class SdkService {
           //   'x-api-key': this.configService.get("TATUM_MAINNET_API_KEY")
           // };
 
-          const tatumRpcUrl = 'https://api.mainnet-beta.solana.com'
+          const tatumRpcUrl = 'https://mainnet.helius-rpc.com/?api-key=807425fe-f056-4cc1-b067-b4ce0a2f2a79' //'https://api.mainnet-beta.solana.com'
 
           
 
