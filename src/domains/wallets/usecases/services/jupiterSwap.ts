@@ -19,19 +19,22 @@ export async function jupiterSwap(
     try {
       console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
 
-      let keypair;
-      try {
-        keypair = createSolanaKeypair(fromPrivateKey);
+      // let keypair;
+      // try {
+      //   keypair = createSolanaKeypair(fromPrivateKey);
       
-      } catch (error) {
+      // } catch (error) {
      
-        throw new Error(`Failed to create Solana Keypair: ${error.message}`);
-      }
+      //   throw new Error(`Failed to create Solana Keypair: ${error.message}`);
+      // }
 
       console.log("Creating Solana wallet");
 
-      const wallet = new Wallet(keypair);
-    
+      //const wallet = new Wallet(keypair);
+      const wallet = new Wallet(Keypair.fromSecretKey(bs58.decode(fromPrivateKey)));
+
+
+
 
       // Define the referral account public key (obtained from the referral dashboard)
       const referralAccountPublicKey = new PublicKey("CXEfB9wmGqyLayo1Byg5WX7MyBqadxK6qStJkopC8YQw");
