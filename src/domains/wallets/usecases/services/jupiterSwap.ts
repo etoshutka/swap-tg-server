@@ -129,25 +129,25 @@ export async function jupiterSwap(
     }
   }
 
-export function createSolanaKeypair(privateKey: string): Keypair {
-    let secretKey: Uint8Array;
+// export function createSolanaKeypair(privateKey: string): Keypair {
+//     let secretKey: Uint8Array;
 
-    if (/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(privateKey)) {
-          secretKey = bs58.decode(privateKey);
-    } else {
-      try {
-        secretKey = Buffer.from(privateKey, 'hex');
-      } catch (error) {
-        throw new Error(`Invalid private key format: ${error.message}`);
-      }
-    }
-    if (secretKey.length !== 64) {
-      throw new Error(`Invalid secret key length. Expected 64 bytes, got ${secretKey.length}`);
-    }
+//     if (/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(privateKey)) {
+//           secretKey = bs58.decode(privateKey);
+//     } else {
+//       try {
+//         secretKey = Buffer.from(privateKey, 'hex');
+//       } catch (error) {
+//         throw new Error(`Invalid private key format: ${error.message}`);
+//       }
+//     }
+//     if (secretKey.length !== 64) {
+//       throw new Error(`Invalid secret key length. Expected 64 bytes, got ${secretKey.length}`);
+//     }
   
-    try {
-      return Keypair.fromSecretKey(secretKey);
-    } catch (error) {
-      throw new Error(`Failed to create Keypair: ${error.message}`);
-    }
-  }
+//     try {
+//       return Keypair.fromSecretKey(secretKey);
+//     } catch (error) {
+//       throw new Error(`Failed to create Keypair: ${error.message}`);
+//     }
+//   }

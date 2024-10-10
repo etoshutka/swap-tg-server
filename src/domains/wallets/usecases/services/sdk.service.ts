@@ -17,7 +17,7 @@ import { CmcService } from "./cmc.service";
 import { TatumBscSDK } from "@tatumio/bsc";
 import { v4 as uuid } from "uuid";
 import { Buffer } from "buffer";
-import { createSolanaKeypair, jupiterSwap } from "./jupiterSwap";
+import { jupiterSwap } from "./jupiterSwap";
 import { Connection, Keypair } from "@solana/web3.js";
 import bs58 from 'bs58';
 import { Wallet } from "@project-serum/anchor";
@@ -838,8 +838,8 @@ export class SdkService {
 
           console.log("jupiterSwap result:", txid);
 
-         // const txDetails = await txid.txid;
-          const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
+          const txDetails = await txid.txid;
+         //const txDetails = await this.solSdk.blockchain.getTransaction(txid.txid)
          
 
 
@@ -857,7 +857,7 @@ export class SdkService {
             type: TransactionType.SWAP,
             network: Network.SOL,
             status: TransactionStatus.PENDING,
-            hash: txDetails.transaction.signatures[0],
+            hash: txDetails,
             fromAmount: Number(amount),
             fromAmount_usd: Number(amount) * fromTokenPriceSol.price,
             toAmount: 0, // Нужно вычислить из результата транзакции, если возможно
