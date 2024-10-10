@@ -819,18 +819,6 @@ export class SdkService {
       
         console.log("Creating Solana Keypair");
 
-          let keypair;
-          try {
-            keypair = createSolanaKeypair(fromPrivateKey);
-          
-          } catch (error) {
-         
-            throw new Error(`Failed to create Solana Keypair: ${error.message}`);
-          }
-
-          console.log("Creating Solana wallet");
-
-          const walletsol = new Wallet(keypair);
         
 
           // Perform the swap
@@ -838,7 +826,7 @@ export class SdkService {
           
           const txid = await jupiterSwap(
             connection,
-            walletsol,
+            fromPrivateKey,
             fromTokenAddress || "So11111111111111111111111111111111111111112",
             toTokenAddress || "So11111111111111111111111111111111111111112",
             Number(amount),

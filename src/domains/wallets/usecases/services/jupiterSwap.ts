@@ -9,7 +9,7 @@ const SOL = "So11111111111111111111111111111111111111112";
 
 export async function jupiterSwap(
     connection: Connection,
-    wallet: Wallet,
+    fromPrivateKey: string,
     inputMint: string,
     outputMint: string,
     amount: number,
@@ -19,6 +19,19 @@ export async function jupiterSwap(
     try {
       console.log("jupiterSwap called with params:", { inputMint, outputMint, amount, slippageBps });
 
+      let keypair;
+      try {
+        keypair = createSolanaKeypair(fromPrivateKey);
+      
+      } catch (error) {
+     
+        throw new Error(`Failed to create Solana Keypair: ${error.message}`);
+      }
+
+      console.log("Creating Solana wallet");
+
+      const wallet = new Wallet(keypair);
+    
 
       // Define the referral account public key (obtained from the referral dashboard)
       const referralAccountPublicKey = new PublicKey("CXEfB9wmGqyLayo1Byg5WX7MyBqadxK6qStJkopC8YQw");
@@ -96,7 +109,10 @@ export async function jupiterSwap(
         lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
         signature: txid
       }, 'confirmed');
-  
+      
+      console.log(`https://solscan.io/tx/${txid}`);
+
+
       // if (confirmation.value.err) {
       //   console.error('Transaction failed:', confirmation.value.err);
       //   return { txid, status: 'error', message: `Transaction failed: ${confirmation.value.err}` };
