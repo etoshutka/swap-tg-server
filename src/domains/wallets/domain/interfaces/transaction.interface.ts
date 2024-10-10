@@ -32,4 +32,6 @@ export class TransactionInterface {
   fee_usd: number;
   updated_at: string;
   created_at: string;
+  service_fee?: number;
+  service_fee_usd?: number;
 }

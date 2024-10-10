@@ -73,4 +73,10 @@ export class TransactionModel implements TransactionInterface {
 
   @CreateDateColumn()
   created_at: string;
+
+  @Column({ type: "float", nullable: true })
+  service_fee?: number;
+
+  @Column({ type: "float", nullable: true })
+  service_fee_usd?: number;
 }

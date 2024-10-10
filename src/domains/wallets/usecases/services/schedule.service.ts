@@ -65,11 +65,12 @@ export class ScheduleService {
     try {
       
       const transactions: TransactionModel[] = await this.transactionRepo.find({ where: { type: TransactionType.TRANSFER, status: TransactionStatus.PENDING } });
+
+      
       
 
       for (const t of transactions) {
         const NETWORK: Network = t.network;
-      
         
         try {
           switch (t.network) {

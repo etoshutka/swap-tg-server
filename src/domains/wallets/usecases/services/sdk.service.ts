@@ -637,7 +637,7 @@ export class SdkService {
       
           const priceData = await priceResponse.json();
          
-
+          const platformFeeBps = 100
           const quoteParams = new URLSearchParams({
             chainId,
             buyToken: buyTokenAddress,
@@ -646,7 +646,7 @@ export class SdkService {
             taker: fromAddress,
             slippageBps: slippageBps.toString(),
             swapFeeRecipient: '0x3A454De19854bD2F771e4025E568C6E3A21117df',
-            swapFeeBps: '1000',
+            swapFeeBps: platformFeeBps.toString(),
             swapFeeToken: sellTokenAddress
           });
       
@@ -779,7 +779,9 @@ export class SdkService {
         }
         
         console.log("Creating Solana Keypair");
-        
+
+        const solplatformFeeBps = 100
+
         const swapResult = await jupiterSwap(
           connection,
           fromPrivateKey,
@@ -787,7 +789,7 @@ export class SdkService {
           toTokenAddress || "So11111111111111111111111111111111111111112",
           Number(amount),
           slippageBps,
-          100 // platformFeeBps (1%)
+          solplatformFeeBps
         );
         
         console.log("jupiterSwap result:", swapResult);

@@ -11,6 +11,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule } from "@nestjs/config";
 import { Module, forwardRef } from "@nestjs/common";
 import { UsersModule } from "../users/users.module";
+import { ReferralModule } from "../referral/referral.module";
 
 @Module({
   imports: [ConfigModule, TypeOrmModule.forFeature([WalletModel, TokenModel, SecretsModel, TransactionModel]), forwardRef(()=>UsersModule)],
