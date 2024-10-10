@@ -2,7 +2,7 @@ import { Connection, Transaction, VersionedTransaction, Keypair, PublicKey, Bloc
 import fetch from 'cross-fetch';
 import { Wallet } from '@project-serum/anchor';
 import bs58 from 'bs58';
-import { promiseRetry } from 'promise-retry';
+import  promiseRetry  from 'promise-retry';
 
 const USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 const SOL = "So11111111111111111111111111111111111111112";
