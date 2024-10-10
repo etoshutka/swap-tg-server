@@ -1,4 +1,4 @@
-import { Connection, Transaction, VersionedTransaction, Keypair, PublicKey, BlockhashWithExpiryBlockHeight } from '@solana/web3.js';
+import { Connection, Transaction, VersionedTransaction, Keypair, PublicKey, BlockhashWithExpiryBlockHeight, TransactionExpiredBlockheightExceededError } from '@solana/web3.js';
 import fetch from 'cross-fetch';
 import { Wallet } from '@project-serum/anchor';
 import bs58 from 'bs58';
@@ -51,6 +51,7 @@ async function transactionSenderAndConfirmationWaiter({
       connection.confirmTransaction(
         {
           ...blockhashWithExpiryBlockHeight,
+          lastValidBlockHeight,
           signature: txid,
         },
         "confirmed"
@@ -68,7 +69,7 @@ async function transactionSenderAndConfirmationWaiter({
       }),
     ]);
   } catch (e) {
-    if (e instanceof Error && e.name === "TransactionExpiredBlockheightExceededError") {
+    if (e instanceof TransactionExpiredBlockheightExceededError) {
       return null;
     } else {
       throw e;
@@ -77,24 +78,32 @@ async function transactionSenderAndConfirmationWaiter({
     controller.abort();
   }
 
-  const response = await promiseRetry(
-    async (retry) => {
-      const response = await connection.getTransaction(txid, {
-        commitment: "confirmed",
-        maxSupportedTransactionVersion: 0,
-      });
-      if (!response) {
-        retry(new Error("Transaction not found"));
+  // Use promiseRetry for getting transaction info
+  try {
+    await promiseRetry(
+      async (retry, number) => {
+        const response = await connection.getTransaction(txid, {
+          commitment: "confirmed",
+          maxSupportedTransactionVersion: 0,
+        });
+        if (!response) {
+          if (number === 5) {
+            throw new Error("Transaction not found after all retries");
+          }
+          retry(new Error("Transaction not found"));
+        }
+        return response;
+      },
+      {
+        retries: 5,
+        minTimeout: 1000,
       }
-      return response;
-    },
-    {
-      retries: 5,
-      minTimeout: 1000,
-    }
-  );
-
-  return response ? txid : null;
+    );
+    return txid;
+  } catch (error) {
+    console.error("Failed to get transaction after retries:", error);
+    return null;
+  }
 }
 
 export async function jupiterSwap(
