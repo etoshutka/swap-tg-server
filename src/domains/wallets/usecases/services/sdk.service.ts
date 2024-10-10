@@ -845,7 +845,7 @@ export class SdkService {
             slippageBps,
             100 // platformFeeBps (1%)
           );
-        
+          console.log(txid.txid)
           //console.log("Slippage (bps):", slippageBps);
 
           console.log("jupiterSwap result:", txid);
