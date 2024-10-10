@@ -103,7 +103,7 @@ export async function jupiterSwap(
       
       const txid = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: true,
-        maxRetries: 2
+        maxRetries: 0
       });
   
     
