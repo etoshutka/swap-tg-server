@@ -783,8 +783,8 @@ export class SdkService {
         const swapResult = await jupiterSwap(
           connection,
           fromPrivateKey,
-          fromTokenAddress || "SOL",
-          toTokenAddress || "SOL",
+          fromTokenAddress || "So11111111111111111111111111111111111111112",
+          toTokenAddress || "So11111111111111111111111111111111111111112",
           Number(amount),
           slippageBps,
           100 // platformFeeBps (1%)
