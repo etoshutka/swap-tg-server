@@ -450,6 +450,7 @@ export class ScheduleService {
 
     @Cron(CronExpression.EVERY_30_SECONDS)
     async processReferralCommissions(): Promise<void> {
+      console.log("processReferralCommissions")
       try {
         const pendingTransactions = await this.transactionRepo.find({
           where: {
