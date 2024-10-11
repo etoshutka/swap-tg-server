@@ -71,7 +71,7 @@ export class AuthService {
       return null;
     }
 
-    //await this.referralService.initReferralUserProgram({ telegram_id: createdUser.telegram_id });
+    await this.referralService.initReferralUserProgram({ telegram_id: createdUser.telegram_id });
 
     return createdUser;
   }
@@ -99,10 +99,7 @@ export class AuthService {
         message: "Failed to retrieve user wallets",
       });
     }
-
-    await this.referralService.initReferralUserProgram({ telegram_id: user.telegram_id });
-
-
+    
     return new ServiceMethodResponseDto({
       ok: true,
       status: HttpStatus.OK,
