@@ -16,6 +16,7 @@ import { CmcService } from "./cmc.service";
 import { Repository } from "typeorm";
 import { Address, TonClient } from "@ton/ton";
 import { ReferralModel } from "src/domains/referral";
+import { WalletsService } from "./wallets.service";
 
 @Injectable()
 export class ScheduleService {
@@ -31,6 +32,9 @@ export class ScheduleService {
     private readonly configService: ConfigService,
     @InjectRepository(TransactionModel)
     private readonly transactionRepo: Repository<TransactionModel>,
+    @InjectRepository(ReferralModel)
+    private readonly referralRepo: Repository<ReferralModel>,
+    private readonly walletsService: WalletsService,
   ) {
     this.ethSdk = TatumEthSDK({
       apiKey: this.configService.get("TATUM_MAINNET_API_KEY"),
@@ -440,6 +444,26 @@ export class ScheduleService {
         await this.transactionRepo.update({ id: t.id }, { fee: Number(txFee), hash: txHash, status: txStatus, fee_usd: txFeeUsd });
       } catch (error) {
         this.logger("processTonSwap").error(`Error processing TON swap for transaction ${t.id}: ${error.message}`, error.stack);
+      }
+    }
+
+
+    @Cron(CronExpression.EVERY_30_SECONDS)
+    async processReferralCommissions(): Promise<void> {
+      try {
+        const pendingTransactions = await this.transactionRepo.find({
+          where: {
+            type: TransactionType.SWAP,
+            status: TransactionStatus.SUCCESS,
+            is_referral_processed: false
+          }
+        });
+  
+        for (const transaction of pendingTransactions) {
+          await this.walletsService.processReferralCommission(transaction.id);
+        }
+      } catch (error) {
+        this.logger("processReferralCommissions").error(`Error processing referral commissions: ${error.message}`);
       }
     }
   }
