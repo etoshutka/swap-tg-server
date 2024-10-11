@@ -667,38 +667,49 @@ export class WalletsService {
   async processReferralCommission(transactionId: string): Promise<boolean> {
     try {
       const transaction = await this.transactionRepo.findOne({ where: { id: transactionId } });
-      if (!transaction || transaction.is_referral_processed) {
+      this.logger("processReferralCommission()").log(`Processing transaction ${transactionId}`);
+  
+      if (!transaction) {
+        this.logger("processReferralCommission()").warn(`Transaction ${transactionId} not found`);
         return false;
       }
-
-      // Проверяем, не прошло ли слишком много времени с момента создания транзакции
+  
+      if (transaction.is_referral_processed) {
+        this.logger("processReferralCommission()").warn(`Transaction ${transactionId} already processed`);
+        return false;
+      }
+  
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       if (new Date(transaction.created_at) < twentyFourHoursAgo) {
+        this.logger("processReferralCommission()").warn(`Transaction ${transactionId} is too old`);
         await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
         return false;
       }
-
+  
       const wallet = await this.walletRepo.findOne({ where: { id: transaction.wallet_id } });
       if (!wallet) {
+        this.logger("processReferralCommission()").warn(`Wallet not found for transaction ${transactionId}`);
         await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
         return false;
       }
-
+  
       const referral = await this.referralRepo.findOne({ where: { user_id: wallet.user_id } });
       if (!referral || !referral.invited_by) {
+        this.logger("processReferralCommission()").warn(`No valid referral found for user ${wallet.user_id}`);
         await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
         return false;
       }
-
-      const referralCommission = transaction.service_fee_usd * 0.3; // 30% от service fee идет рефереру
-      
+  
+      const referralCommission = transaction.service_fee_usd * 0.3;
+      this.logger("processReferralCommission()").log(`Calculated commission: ${referralCommission} USD for transaction ${transactionId}`);
+  
       await this.referralRepo.update(
         { user_id: referral.invited_by },
         { 
           balance: () => `balance + ${referralCommission}`,
         }
       );
-
+  
       await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
       this.logger("processReferralCommission()").log(`Referral commission of ${referralCommission} USD credited to user ${referral.invited_by}`);
       return true;
