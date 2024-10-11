@@ -666,9 +666,9 @@ export class WalletsService {
 
   async processReferralCommission(transactionId: string): Promise<boolean> {
     try {
-      const transaction = await this.transactionRepo.findOne({ where: { id: transactionId } });
       this.logger("processReferralCommission()").log(`Processing transaction ${transactionId}`);
   
+      const transaction = await this.transactionRepo.findOne({ where: { id: transactionId } });
       if (!transaction || transaction.is_referral_processed) {
         this.logger("processReferralCommission()").warn(`Transaction ${transactionId} not found or already processed`);
         return false;
@@ -683,13 +683,13 @@ export class WalletsService {
   
       const referral = await this.referralRepo.findOne({ where: { user_id: wallet.user_id } });
       if (!referral) {
-        this.logger("processReferralCommission()").warn(`No referral found for user ${wallet.user_id}`);
+        this.logger("processReferralCommission()").warn(`No referral found for user_id ${wallet.user_id}`);
         await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
         return false;
       }
   
       if (!referral.invited_by) {
-        this.logger("processReferralCommission()").warn(`User ${wallet.user_id} was not invited by anyone`);
+        this.logger("processReferralCommission()").warn(`User ${referral.telegram_id} was not invited by anyone`);
         await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
         return false;
       }
@@ -697,8 +697,17 @@ export class WalletsService {
       const referralCommission = transaction.service_fee_usd * 0.3;
       this.logger("processReferralCommission()").log(`Calculated commission: ${referralCommission} USD for transaction ${transactionId}`);
   
+      // Находим реферальную запись пригласившего пользователя
+      const inviterReferral = await this.referralRepo.findOne({ where: { telegram_id: referral.invited_by } });
+      if (!inviterReferral) {
+        this.logger("processReferralCommission()").warn(`Inviter referral not found for telegram_id ${referral.invited_by}`);
+        await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
+        return false;
+      }
+  
+      // Обновляем баланс пригласившего пользователя
       await this.referralRepo.update(
-        { telegram_id: referral.invited_by },
+        { id: inviterReferral.id },
         { 
           balance: () => `balance + ${referralCommission}`,
         }
