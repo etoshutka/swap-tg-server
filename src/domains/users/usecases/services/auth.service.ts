@@ -89,6 +89,10 @@ export class AuthService {
 
     const { user, isNewUser } = validateResult.data;
 
+    if (isNewUser) {
+      await this.referralService.initReferralUserProgram({ telegram_id: user.telegram_id });
+    }
+
     const walletsResult = await this.walletsService.getWallets({ user_id: user.id });
 
     if (!walletsResult.ok) {
