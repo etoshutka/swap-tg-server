@@ -68,6 +68,14 @@ export class WalletsController {
   }
 
   @UseGuards(AuthGuard)
+  @Delete("token/delete")
+  async deleteWalletToken(@Body() body: { wallet_id: string, token_id: string }) {
+    const result = await this.walletsService.deleteWalletToken(body);
+    if (!result.ok) throw new HttpException(result.message, result.status);
+    return result;
+  }
+
+  @UseGuards(AuthGuard)
   @Get("token/historical-quotes")
   async getHistoricalQuotes(@Query() params: serviceTypes.GetHistoricalQuotesParams) {
     try {

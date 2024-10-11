@@ -376,6 +376,27 @@ export class WalletsService {
       return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Failed to add token into wallet " + e.message });
     }
   }
+
+  async deleteWalletToken(params: { wallet_id: string, token_id: string }): Promise<ServiceMethodResponseDto<null>> {
+    try {
+      const wallet = await this.walletRepo.findOne({ where: { id: params.wallet_id } });
+      if (!wallet) {
+        return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Wallet not found" });
+      }
+
+      const token = await this.tokenRepo.findOne({ where: { id: params.token_id, wallet_id: params.wallet_id } });
+      if (!token) {
+        return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.NOT_FOUND, message: "Token not found" });
+      }
+
+      await this.tokenRepo.delete({ id: params.token_id });
+
+      return new ServiceMethodResponseDto({ ok: true, status: HttpStatus.OK, data: null });
+    } catch (e) {
+      this.logger("deleteWalletToken()").error("Сan not delete token: " + e.message);
+      return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: "Can not delete token" });
+    }
+  }
   
   async addNativeWalletToken(params: types.AddNativeWalletTokenParams): Promise<ServiceMethodResponseDto<null>> {
     try {
