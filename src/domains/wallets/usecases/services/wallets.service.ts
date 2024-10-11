@@ -669,20 +669,8 @@ export class WalletsService {
       const transaction = await this.transactionRepo.findOne({ where: { id: transactionId } });
       this.logger("processReferralCommission()").log(`Processing transaction ${transactionId}`);
   
-      if (!transaction) {
-        this.logger("processReferralCommission()").warn(`Transaction ${transactionId} not found`);
-        return false;
-      }
-  
-      if (transaction.is_referral_processed) {
-        this.logger("processReferralCommission()").warn(`Transaction ${transactionId} already processed`);
-        return false;
-      }
-  
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      if (new Date(transaction.created_at) < twentyFourHoursAgo) {
-        this.logger("processReferralCommission()").warn(`Transaction ${transactionId} is too old`);
-        await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
+      if (!transaction || transaction.is_referral_processed) {
+        this.logger("processReferralCommission()").warn(`Transaction ${transactionId} not found or already processed`);
         return false;
       }
   
@@ -694,8 +682,14 @@ export class WalletsService {
       }
   
       const referral = await this.referralRepo.findOne({ where: { user_id: wallet.user_id } });
-      if (!referral || !referral.invited_by) {
-        this.logger("processReferralCommission()").warn(`No valid referral found for user ${wallet.user_id}`);
+      if (!referral) {
+        this.logger("processReferralCommission()").warn(`No referral found for user ${wallet.user_id}`);
+        await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
+        return false;
+      }
+  
+      if (!referral.invited_by) {
+        this.logger("processReferralCommission()").warn(`User ${wallet.user_id} was not invited by anyone`);
         await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
         return false;
       }
@@ -704,7 +698,7 @@ export class WalletsService {
       this.logger("processReferralCommission()").log(`Calculated commission: ${referralCommission} USD for transaction ${transactionId}`);
   
       await this.referralRepo.update(
-        { user_id: referral.invited_by },
+        { telegram_id: referral.invited_by },
         { 
           balance: () => `balance + ${referralCommission}`,
         }
