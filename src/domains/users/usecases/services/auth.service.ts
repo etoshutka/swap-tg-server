@@ -71,7 +71,7 @@ export class AuthService {
       return null;
     }
 
-    await this.referralService.initReferralUserProgram({ telegram_id: createdUser.telegram_id });
+    //await this.referralService.initReferralUserProgram({ telegram_id: createdUser.telegram_id });
 
     return createdUser;
   }
@@ -88,10 +88,7 @@ export class AuthService {
     }
 
     const { user, isNewUser } = validateResult.data;
-
-    if (isNewUser) {
-      await this.referralService.initReferralUserProgram({ telegram_id: user.telegram_id });
-    }
+    
 
     const walletsResult = await this.walletsService.getWallets({ user_id: user.id });
 
@@ -102,6 +99,9 @@ export class AuthService {
         message: "Failed to retrieve user wallets",
       });
     }
+
+    await this.referralService.initReferralUserProgram({ telegram_id: user.telegram_id });
+
 
     return new ServiceMethodResponseDto({
       ok: true,
