@@ -6,6 +6,7 @@ import { ReferralService } from "src/domains/referral";
 import * as types from "../interfaces/auth.interface";
 import { UsersService } from "./users.service";
 
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -14,13 +15,13 @@ export class AuthService {
     private readonly referralService: ReferralService,
   ) {}
 
-  async validateUser(telegramData: types.TelegramUserData): Promise<ServiceMethodResponseDto<types.ValidateUserResult>> {
+  async validateUser(telegramData: types.TelegramUserData, invited_by?: string): Promise<ServiceMethodResponseDto<types.ValidateUserResult>> {
     let user = await this.userService.findOne({ telegram_id: telegramData.id });
     let isNewUser = false;
 
     if (!user) {
       isNewUser = true;
-      user = await this.createUser(telegramData);
+      user = await this.createUser(telegramData, invited_by);
     } else {
       // Update user info if needed
       await this.userService.updateOne({ 
@@ -48,7 +49,7 @@ export class AuthService {
     });
   }
 
-  private async createUser(telegramData: types.TelegramUserData): Promise<UserModel | null> {
+  private async createUser(telegramData: types.TelegramUserData, invited_by?: string): Promise<UserModel | null> {
     const createdUser = await this.userService.create({
       telegram_id: telegramData.id,
       username: telegramData.username,
@@ -71,13 +72,18 @@ export class AuthService {
       return null;
     }
 
-    await this.referralService.initReferralUserProgram({ telegram_id: createdUser.telegram_id });
+   
+    await this.referralService.initReferralUserProgram({ 
+      telegram_id: createdUser.telegram_id,
+      invited_by: invited_by
+    });
+
 
     return createdUser;
   }
 
-  async getAuthResult(telegramData: types.TelegramUserData): Promise<ServiceMethodResponseDto<types.AuthResult>> {
-    const validateResult = await this.validateUser(telegramData);
+  async getAuthResult(telegramData: types.TelegramUserData, invited_by?: string): Promise<ServiceMethodResponseDto<types.AuthResult>> {
+    const validateResult = await this.validateUser(telegramData, invited_by);
 
     if (!validateResult.ok) {
       return new ServiceMethodResponseDto({
@@ -88,7 +94,6 @@ export class AuthService {
     }
 
     const { user, isNewUser } = validateResult.data;
-    
 
     const walletsResult = await this.walletsService.getWallets({ user_id: user.id });
 

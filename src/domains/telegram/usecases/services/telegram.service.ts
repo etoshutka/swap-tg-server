@@ -45,12 +45,6 @@ export class TelegramService {
       if (!isUserExist) {
         const m1: TelegramApi.Message = await bot.sendMessage(chat_id, "Hello 👋, please, wait a few moments, app is initializing...");
 
-
-        // Check ref link
-        await bot.editMessageText("⏳ Check your referral link...", { chat_id, message_id: m1.message_id });
-        !!invited_by && (await this.referralService.checkReferralLink({ invited_by, telegram_id }));
-
-
         // Create new user
         const authResult = await this.authService.getAuthResult({ 
           id: telegram_id, 
@@ -58,13 +52,17 @@ export class TelegramService {
           first_name: msg.from.first_name,
           last_name: msg.from.last_name,
           language_code: msg.from.language_code 
-        });
+        }, invited_by);
 
         if (!authResult.ok) {
           await bot.editMessageText("Sorry, there was an error creating your account. Please try again later.", { chat_id, message_id: m1.message_id });
           return;
         }
-        
+
+        // Check ref link
+        await bot.editMessageText("⏳ Check your referral link...", { chat_id, message_id: m1.message_id });
+        !!invited_by && (await this.referralService.checkReferralLink({ invited_by, telegram_id }));
+
         // Send welcome message with inline keyboard
         const miniAppUrl = this.configService.get("TELEGRAM_MINI_APP_URL"); // Получаем URL miniapp из конфигурации
         await bot.editMessageText("Welcome to the TestCryptoSwapBot! 🙌", {
