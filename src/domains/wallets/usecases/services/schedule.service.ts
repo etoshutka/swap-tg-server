@@ -15,6 +15,7 @@ import { TatumBscSDK } from "@tatumio/bsc";
 import { CmcService } from "./cmc.service";
 import { Repository } from "typeorm";
 import { Address, TonClient } from "@ton/ton";
+import { ReferralModel } from "src/domains/referral";
 
 @Injectable()
 export class ScheduleService {
@@ -287,7 +288,7 @@ export class ScheduleService {
           try {
             const createdAt = new Date(t.created_at);
             const transactionAge = Date.now() - createdAt.getTime();
-            const MAX_PENDING_TIME = 30 * 60 * 1000; // 30 minutes in milliseconds
+            const MAX_PENDING_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
     
             if (transactionAge > MAX_PENDING_TIME) {
               await this.transactionRepo.update({ id: t.id }, { status: TransactionStatus.FAILED });
@@ -442,3 +443,5 @@ export class ScheduleService {
       }
     }
   }
+
+  

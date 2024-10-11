@@ -14,6 +14,7 @@ import { SdkService } from "./sdk.service";
 import { Repository } from "typeorm";
 import * as moment from "moment";
 import { TransactionStatus, TransactionType } from "../../domain/interfaces/transaction.interface";
+import { ReferralModel } from "src/domains/referral/domain/models/referral.model";
 
 @Injectable()
 export class WalletsService {
@@ -29,6 +30,8 @@ export class WalletsService {
     private readonly secretsRepo: Repository<SecretsModel>,
     @InjectRepository(TransactionModel)
     private readonly transactionRepo: Repository<TransactionModel>,
+    @InjectRepository(ReferralModel)
+    private readonly referralRepo: Repository<ReferralModel>,
   ) {}
 
   /**
@@ -660,6 +663,51 @@ export class WalletsService {
       return new ServiceMethodResponseDto({ ok: false, status: HttpStatus.INTERNAL_SERVER_ERROR, message: `Failed to swap tokens: ${e.message}` });
     }
   }
+
+  async processReferralCommission(transactionId: string): Promise<boolean> {
+    try {
+      const transaction = await this.transactionRepo.findOne({ where: { id: transactionId } });
+      if (!transaction || transaction.is_referral_processed) {
+        return false;
+      }
+
+      // Проверяем, не прошло ли слишком много времени с момента создания транзакции
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      if (new Date(transaction.created_at) < twentyFourHoursAgo) {
+        await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
+        return false;
+      }
+
+      const wallet = await this.walletRepo.findOne({ where: { id: transaction.wallet_id } });
+      if (!wallet) {
+        await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
+        return false;
+      }
+
+      const referral = await this.referralRepo.findOne({ where: { user_id: wallet.user_id } });
+      if (!referral || !referral.invited_by) {
+        await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
+        return false;
+      }
+
+      const referralCommission = transaction.service_fee_usd * 0.3; // 30% от service fee идет рефереру
+      
+      await this.referralRepo.update(
+        { user_id: referral.invited_by },
+        { 
+          balance: () => `balance + ${referralCommission}`,
+        }
+      );
+
+      await this.transactionRepo.update({ id: transactionId }, { is_referral_processed: true });
+      this.logger("processReferralCommission()").log(`Referral commission of ${referralCommission} USD credited to user ${referral.invited_by}`);
+      return true;
+    } catch (error) {
+      this.logger("processReferralCommission()").error(`Failed to process referral commission: ${error.message}`);
+      return false;
+    }
+  }
+
 
 async estimateSwapFee(params: types.SwapTokensParams): Promise<ServiceMethodResponseDto<number>> {
   this.logger(`Estimating swap fee for params: ${JSON.stringify(params)}`);

@@ -19,7 +19,11 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prettier:lint": "npx prettier --check \"src/**/*.ts\"",
-    "prettier:fix": "npx prettier --write \"src/**/*.ts\""
+    "prettier:fix": "npx prettier --write \"src/**/*.ts\"",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "npm run typeorm migration:generate -- -d src/config/database/typeorm.config.ts",
+    "migration:run": "npm run typeorm migration:run -- -d src/config/database/typeorm.config.ts",
+    "migration:revert": "npm run typeorm migration:revert -- -d src/config/database/typeorm.config.ts"
   },
   "dependencies": {
     "@dedust/sdk": "^0.8.7",

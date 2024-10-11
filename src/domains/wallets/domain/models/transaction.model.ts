@@ -79,4 +79,7 @@ export class TransactionModel implements TransactionInterface {
 
   @Column({ type: "float", nullable: true })
   service_fee_usd?: number;
+
+  @Column({ default: false })
+  is_referral_processed?: boolean;
 }
