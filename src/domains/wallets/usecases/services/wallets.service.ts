@@ -603,6 +603,53 @@ export class WalletsService {
     return new ServiceMethodResponseDto({ ok: true, data: transactions ?? [], status: HttpStatus.OK });
   }
 
+  /**
+   * @name getTokenTransactions
+   * @desc Get token transactions by wallet
+   * @param {types.GetTokenTransactionsParams} params
+   * @returns {Promise<ServiceMethodResponseDto<TransactionModel[]>>}
+   */
+  async getTokenTransactions(params: { wallet_id: string, token_symbol: string }): Promise<ServiceMethodResponseDto<{ transactions: TransactionModel[], groupedTransactions: Record<string, TransactionModel[]> }>> {
+    const walletData = await this.getWallet({ id: params.wallet_id });
+  
+    if (!walletData.data) {
+      this.logger("getTokenTransactions()").error("Wallet not found");
+      return new ServiceMethodResponseDto({ ok: false, data: null, status: HttpStatus.NOT_FOUND, message: "Wallet not found" });
+    }
+  
+    let transactions: TransactionModel[] = await this.transactionRepo.find({
+      where: { wallet_id: params.wallet_id }
+    });
+  
+    transactions = transactions.filter(transaction => 
+      transaction.currency === params.token_symbol ||
+      transaction.fromCurrency === params.token_symbol
+    );
+  
+    transactions = transactions.sort((a, b) => {
+      return moment(b.created_at).diff(moment(a.created_at));
+    });
+  
+  
+    const groupedTransactions = transactions.reduce((acc, transaction) => {
+      const date = moment(transaction.created_at).format('YYYY-MM-DD');
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(transaction);
+      return acc;
+    }, {} as Record<string, TransactionModel[]>);
+  
+    return new ServiceMethodResponseDto({ 
+      ok: true, 
+      data: { 
+        transactions: transactions ?? [], 
+        groupedTransactions: groupedTransactions ?? {}
+      }, 
+      status: HttpStatus.OK 
+    });
+  }
+
 
   /**
  * @name swapTokens

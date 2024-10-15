@@ -130,6 +130,14 @@ export class WalletsController {
   }
 
   @UseGuards(AuthGuard)
+  @Get("token-transactions")
+  async getTokenTransactions(@Query() query: { wallet_id: string, token_symbol: string }) {
+    const result = await this.walletsService.getTokenTransactions(query);
+    if (!result.ok) throw new HttpException(result.message, result.status);
+    return result;
+  }
+
+  @UseGuards(AuthGuard)
   @Post("swap")
   async swapTokens(@Body() body: serviceTypes.SwapTokensParams, @Req() req: Request & { user: UserModel }) {
     try {
