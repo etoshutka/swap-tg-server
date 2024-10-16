@@ -391,66 +391,97 @@ export class ScheduleService {
       try {
         const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
     
+        const isJettonSwap: boolean = t.fromCurrency !== 'TON' || t.toCurrency !== 'TON';
+        const swapId: string = t.hash; // Используем hash как идентификатор свапа
+    
         let isTonTransactionEnded: boolean = false;
-        let swapTransactions: Transaction[] = [];
-        let attempts = 0;
-        const MAX_ATTEMPTS = 15;
+        let tonTransactionResult: Transaction | undefined;
+        const tonTransactionResults: Transaction[] = [];
     
         const DEDUST_SWAP_EXTERNAL_OPCODE = '0x61ee542d';
         const EXCESS_OPCODE = '0xd53276db';
     
-        while (!isTonTransactionEnded && attempts < MAX_ATTEMPTS) {
-          attempts++;
-          await new Promise((resolve) => setTimeout(resolve, 10000));
-          const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
-    
-          this.logger("processTonSwap").debug(`Attempt ${attempts}: Found ${walletTransactions.transactions.length} transactions`);
-    
-          // Поиск транзакций свапа по опкодам
-          swapTransactions = walletTransactions.transactions.filter((tx) => {
-            const outMsgs = tx.outMsgs || [];
-            return outMsgs.some(msg => {
-              const bodyCell = msg.decodedBody?.cell;
-              if (bodyCell) {
-                const opcode = bodyCell.bits.slice(0, 32).toString('hex');
-                return opcode === DEDUST_SWAP_EXTERNAL_OPCODE || opcode === EXCESS_OPCODE;
-              }
-              return false;
+        if (!isJettonSwap) {
+          while (!isTonTransactionEnded) {
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+            const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+      
+            const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => {
+              const outMsgs = tx.outMsgs || [];
+              return outMsgs.some(msg => {
+                const bodyCell = msg.decodedBody?.cell;
+                if (bodyCell) {
+                  const opcode = bodyCell.bits.slice(0, 32).toString('hex');
+                  return opcode === DEDUST_SWAP_EXTERNAL_OPCODE || opcode === EXCESS_OPCODE;
+                }
+                return false;
+              });
             });
-          });
     
-          this.logger("processTonSwap").debug(`Found ${swapTransactions.length} potential swap transactions`);
+            if (transaction) {
+              tonTransactionResult = transaction;
+              isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
+            }
+          }
+        } else {
+          while (!isTonTransactionEnded) {
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+            const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+        
+            const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => {
+              const outMsgs = tx.outMsgs || [];
+              return outMsgs.some(msg => {
+                const bodyCell = msg.decodedBody?.cell;
+                if (bodyCell) {
+                  const opcode = bodyCell.bits.slice(0, 32).toString('hex');
+                  return opcode === DEDUST_SWAP_EXTERNAL_OPCODE || opcode === EXCESS_OPCODE;
+                }
+                return false;
+              });
+            });
     
-          if (swapTransactions.length > 0) {
-            const lastSwapTx = swapTransactions[swapTransactions.length - 1];
-            isTonTransactionEnded = lastSwapTx.success || lastSwapTx.destroyed || lastSwapTx.aborted;
+            if (transaction && tonTransactionResults.length < 2 && (transaction.success || transaction.destroyed || transaction.aborted)) {
+              tonTransactionResults.push(transaction);
+            }
+    
+            if (tonTransactionResults.length === 2) {
+              isTonTransactionEnded = true;
+            }
           }
         }
     
-        if (swapTransactions.length === 0) {
-          this.logger("processTonSwap").warn(`No swap transactions found for transaction ${t.id}`);
-          return;
+        let txFee: number;
+        if (isJettonSwap) {
+          txFee = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
+        } else if (tonTransactionResult) {
+          txFee = Number(tonTransactionResult.totalFees) / 1e9;
+        } else {
+          throw new Error("Transaction result is undefined");
         }
     
-        const totalFees = swapTransactions.reduce((acc, tx) => acc + BigInt(tx.totalFees), BigInt(0));
-        const txFee = Number(totalFees) / 1e9;
         const txFeeUsd: number = txFee * tonPrice;
     
-        const lastSwapTx = swapTransactions[swapTransactions.length - 1];
-        const txHash: string = lastSwapTx.hash;
-        const txStatus: TransactionStatus = lastSwapTx.success
-          ? TransactionStatus.SUCCESS
-          : TransactionStatus.FAILED;
+        const txHash: string = isJettonSwap 
+          ? tonTransactionResults[tonTransactionResults.length - 1].hash 
+          : tonTransactionResult?.hash || '';
     
-        this.logger("processTonSwap").debug(`Updating transaction ${t.id}: status=${txStatus}, fee=${txFee}, hash=${txHash}`);
+        const txStatus: TransactionStatus = isJettonSwap
+          ? tonTransactionResults[tonTransactionResults.length - 1].success
+            ? TransactionStatus.SUCCESS
+            : TransactionStatus.FAILED
+          : tonTransactionResult?.success
+            ? TransactionStatus.SUCCESS
+            : TransactionStatus.FAILED;
+    
+        this.logger("processTonSwap").debug(`Updating swap transaction ${t.id}: status=${txStatus}, fee=${txFee}, hash=${txHash}`);
     
         await this.transactionRepo.update(
-          { id: t.id },
-          {
-            fee: txFee,
-            hash: txHash,
-            status: txStatus,
-            fee_usd: txFeeUsd
+          { id: t.id }, 
+          { 
+            fee: txFee, 
+            hash: txHash, 
+            status: txStatus, 
+            fee_usd: txFeeUsd 
           }
         );
     
@@ -459,7 +490,6 @@ export class ScheduleService {
         this.logger("processTonSwap").error(`Error processing TON swap for transaction ${t.id}: ${error.message}`, error.stack);
       }
     }
-
     @Cron(CronExpression.EVERY_30_SECONDS)
     async processReferralCommissions(): Promise<void> {
       console.log("processReferralCommissions")
