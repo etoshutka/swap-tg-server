@@ -391,15 +391,12 @@ export class ScheduleService {
       try {
         const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
     
-        const isJettonSwap: boolean = t.fromCurrency !== 'TON' || t.toCurrency !== 'TON';
+        const [transferId, _] = t.hash.split(':');
         
         let isTonTransactionEnded: boolean = false;
         let swapTransactions: Transaction[] = [];
         let attempts = 0;
         const MAX_ATTEMPTS = 15;
-    
-        const DEDUST_SWAP_EXTERNAL_OPCODE = '0x61ee542d';
-        const EXCESS_OPCODE = '0xd53276db';
     
         while (!isTonTransactionEnded && attempts < MAX_ATTEMPTS) {
           attempts++;
@@ -414,11 +411,11 @@ export class ScheduleService {
             return outMsgs.some(msg => {
               const bodyCell = msg.decodedBody?.cell;
               if (bodyCell) {
-                const opcode = bodyCell.bits.slice(0, 32).toString('hex');
-                return opcode === DEDUST_SWAP_EXTERNAL_OPCODE || opcode === EXCESS_OPCODE;
+                const storedTransferId = bodyCell.beginParse().loadUint(64);
+                return storedTransferId.toString() === transferId;
               }
               return false;
-            }) || JSON.stringify(tx).includes(t.hash); // Дополнительная проверка на наличие transferId
+            });
           });
     
           this.logger("processTonSwap").debug(`Found ${swapTransactions.length} potential swap transactions`);

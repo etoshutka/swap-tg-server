@@ -760,53 +760,61 @@ export class SdkService {
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
           const tonVault = this.tonSecondSdk.open(await factory.getNativeVault());
-        
+
           const fromToken = fromTokenAddress ? Asset.jetton(Address.parse(fromTokenAddress)) : Asset.native();
           const toToken = toTokenAddress ? Asset.jetton(Address.parse(toTokenAddress)) : Asset.native();
-        
+
           const pool = this.tonSecondSdk.open(await factory.getPool(PoolType.VOLATILE, [fromToken, toToken]));
-         
+        
           if ((await pool.getReadinessStatus()) !== ReadinessStatus.READY) {
             throw new Error(`Pool (${fromToken}, ${toToken}) does not exist.`);
           }
-  
+
           if ((await tonVault.getReadinessStatus()) !== ReadinessStatus.READY) {
             throw new Error('Vault (TON) does not exist.');
           }
           
           const getTokenDecimals = (tokenAddress: string | null): number => {
-            // Адрес USDT в сети TON
             const USDT_ADDRESS = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
             return tokenAddress === USDT_ADDRESS ? 6 : 9;
           };
 
-
           const fromTokenDecimals = getTokenDecimals(fromTokenAddress);
           const toTokenDecimals = getTokenDecimals(toTokenAddress);
 
-  
           const amountIn = BigInt(Math.floor(Number(amount) * 10**fromTokenDecimals));
-
 
           const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
             assetIn: fromToken,
             amountIn,
           });
           const minAmountOut = (expectedAmountOut * BigInt(10000 - slippageBps)) / 10000n;
-    
-         
+
+          // Вычисление комиссии
+          const FEE_PERCENTAGE = 0.1; // 0.1% комиссия
+          const MINIMUM_FEE = toNano('0.01'); // Минимальная комиссия 0.01 TON
+          const calculatedFee = (amountIn * BigInt(Math.floor(FEE_PERCENTAGE * 100))) / 10000n;
+          const fee = calculatedFee > MINIMUM_FEE ? calculatedFee : MINIMUM_FEE;
+
           const pair: KeyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
           
           const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
-         
+        
           const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
           const seqno: number = await contract.getSeqno();
-          const transferId: string = uuid();
+          const transferId: number = Math.floor(Math.random() * (999_999_999 - 100_000_000 + 1) + 100_000_000);
+
+          const fulfillPayload: Cell = beginCell()
+            .storeUint(0xf8a7ea5, 32)
+            .storeUint(transferId, 64)
+            .storeAddress(Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw')) // Адрес для получения комиссии
+            .storeCoins(fee) // Комиссия
+            .endCell();
           
           const sender: Sender = {
             address: wallet.address,
             send: async (args: SenderArguments) => {
-                         await contract.sendTransfer({
+              await contract.sendTransfer({
                 seqno,
                 sendMode: SendMode.PAY_GAS_SEPARATELY,
                 secretKey: pair.secretKey,
@@ -819,10 +827,9 @@ export class SdkService {
                   })
                 ],
               });
-           
             }
           };
-  
+
           if (fromToken.toString() === Asset.native().toString()) {
             await tonVault.sendSwap(sender, {
               poolAddress: pool.address,
@@ -831,6 +838,7 @@ export class SdkService {
               limit: minAmountOut,
               swapParams: {
                 referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
+                fulfillPayload: fulfillPayload,
               },
             });
           } else {
@@ -840,7 +848,7 @@ export class SdkService {
             const jettonVault = this.tonSecondSdk.open(await factory.getJettonVault(Address.parse(fromTokenAddress)));
             const jettonRoot = this.tonSecondSdk.open(JettonRoot.createFromAddress(Address.parse(fromTokenAddress)));
             const jettonWallet = this.tonSecondSdk.open(await jettonRoot.getWallet(sender.address));
-           
+          
             await jettonWallet.sendTransfer(sender, toNano("0.3"), {
               amount: amountIn,
               destination: jettonVault.address,
@@ -851,11 +859,12 @@ export class SdkService {
                 poolAddress: pool.address,  
                 swapParams: {
                   referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
+                  fulfillPayload: fulfillPayload,
                 },
               }),
             });
           }
-  
+          
           const safeGetTokenPrice = async (address: string | null, symbol: string): Promise<number> => {
             try {
               if (!address && symbol.toUpperCase() === 'TON') {
@@ -880,7 +889,7 @@ export class SdkService {
             type: TransactionType.SWAP,
             network: Network.TON,
             status: TransactionStatus.PENDING,
-            hash: transferId,
+            hash: `${transferId}:swap`,
             fromAmount: Number(amount),
             fromAmount_usd: Number(amount) * fromTokenPrice,
             toAmount: 0,
