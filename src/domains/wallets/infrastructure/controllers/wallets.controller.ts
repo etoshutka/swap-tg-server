@@ -164,23 +164,4 @@ export class WalletsController {
       throw new HttpException(error.message || 'Internal server error', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
-  @UseGuards(AuthGuard)
-  @Post("update-balances/:id")
-  async updateWalletBalances(@Param('id') walletId: string) {
-    try {
-      const wallet = await this.walletsService.getWallet({ id: walletId });
-      if (!wallet.ok || !wallet.data) {
-        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
-      }
-      
-      const result = await this.walletsService.updateWalletBalances({ wallet: wallet.data });
-      if (!result.ok) {
-        throw new HttpException(result.message, result.status);
-      }
-      return result;
-    } catch (error) {
-      throw new HttpException(error.message || 'Internal server error', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
 }
