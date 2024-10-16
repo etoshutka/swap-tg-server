@@ -773,8 +773,16 @@ export class SdkService {
           if ((await tonVault.getReadinessStatus()) !== ReadinessStatus.READY) {
             throw new Error('Vault (TON) does not exist.');
           }
-  
+          
+          
           const amountIn = toNano(amount);
+
+          const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
+            assetIn: fromToken,
+            amountIn,
+          });
+          const minAmountOut = (expectedAmountOut * BigInt(10000 - slippageBps)) / 10000n;
+    
          
           const pair: KeyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
           
@@ -782,7 +790,7 @@ export class SdkService {
          
           const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
           const seqno: number = await contract.getSeqno();
-         
+          
           const transferId: string = uuid();
           
           const sender: Sender = {
@@ -810,6 +818,7 @@ export class SdkService {
               poolAddress: pool.address,
               amount: amountIn,
               gasAmount: toNano("0.25"),
+              limit: minAmountOut,
               swapParams: {
                 referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               },
@@ -825,7 +834,7 @@ export class SdkService {
             await jettonWallet.sendTransfer(sender, toNano("0.3"), {
               amount: amountIn,
               destination: jettonVault.address,
-              responseAddress: sender.address,
+              responseAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               forwardAmount: toNano("0.25"),
               forwardPayload: VaultJetton.createSwapPayload({ 
                 poolAddress: pool.address,  swapParams: {
