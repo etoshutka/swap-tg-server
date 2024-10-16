@@ -776,7 +776,7 @@ export class SdkService {
           
           const getTokenDecimals = (tokenAddress: string | null): number => {
             // Адрес USDT в сети TON
-            const USDT_ADDRESS = 'EQBynBO23ywHy_CgarY9NK9FTz0yDsG82PtcbSTQgGoXwiuA';
+            const USDT_ADDRESS = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
             return tokenAddress === USDT_ADDRESS ? 6 : 9;
           };
 
@@ -851,6 +851,7 @@ export class SdkService {
                 limit: minAmountOut,
                 poolAddress: pool.address,  
                 swapParams: {
+                  recipientAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
                   referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
                 },
               }),
