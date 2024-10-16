@@ -774,8 +774,19 @@ export class SdkService {
             throw new Error('Vault (TON) does not exist.');
           }
           
-          
-          const amountIn = toNano(amount);
+          const getTokenDecimals = (tokenAddress: string | null): number => {
+            // Адрес USDT в сети TON
+            const USDT_ADDRESS = 'EQBynBO23ywHy_CgarY9NK9FTz0yDsG82PtcbSTQgGoXwiuA';
+            return tokenAddress === USDT_ADDRESS ? 6 : 9;
+          };
+
+
+          const fromTokenDecimals = getTokenDecimals(fromTokenAddress);
+          const toTokenDecimals = getTokenDecimals(toTokenAddress);
+
+  
+          const amountIn = BigInt(Math.floor(Number(amount) * 10**fromTokenDecimals));
+
 
           const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
             assetIn: fromToken,
