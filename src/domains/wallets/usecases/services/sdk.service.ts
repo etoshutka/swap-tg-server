@@ -569,13 +569,6 @@ export class SdkService {
     try {
       const { network, fromTokenAddress, toTokenAddress, amount, fromAddress, fromPrivateKey, slippageBps } = params;
 
-      // console.log("Received slippageBps:", slippageBps); 
-  
-       
-      if (!fromPrivateKey) {
-        throw new Error('fromPrivateKey is null or undefined');
-      }
-  
       switch (network) {
         case Network.BSC:
         case Network.ETH:
@@ -584,6 +577,7 @@ export class SdkService {
           const zeroXApiUrl = 'https://api.0x.org';
           const nativeSymbol = isEth ? 'ETH' : 'BNB';
           const chainId = isEth ? '1' : '56';
+          const platformFeeBps = 100
       
           const WETH_ADDRESS = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
           const WBNB_ADDRESS = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
@@ -595,17 +589,8 @@ export class SdkService {
       
           const decimals: number = fromTokenAddress ? await sdk.erc20.decimals(fromTokenAddress) : 18;
          
-      
-          // Log balance before swap
-          const balanceBefore = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
-         
-         
-         
-      
-          // Convert amount to wei (as a BigInt)
           const sellAmountWei = BigInt(Math.floor(Number(amount) * Number(10**decimals)));
          
-      
           const priceParams = new URLSearchParams({
             chainId,
             buyToken: buyTokenAddress,
@@ -617,9 +602,6 @@ export class SdkService {
             swapFeeBps: '1000',
             swapFeeToken: sellTokenAddress
           });
-      
-         
-      
           const priceResponse = await fetch(`${zeroXApiUrl}/swap/allowance-holder/price?${priceParams}`, {
             method: 'GET',
             headers: { 
@@ -628,16 +610,13 @@ export class SdkService {
               'Accept': 'application/json'
             }
           });
-      
           if (!priceResponse.ok) {
             const errorText = await priceResponse.text();
             console.error('0x API Price Error:', errorText);
             throw new Error(`HTTP error! status: ${priceResponse.status}`);
           }
-      
           const priceData = await priceResponse.json();
          
-          const platformFeeBps = 100
           const quoteParams = new URLSearchParams({
             chainId,
             buyToken: buyTokenAddress,
@@ -649,9 +628,6 @@ export class SdkService {
             swapFeeBps: platformFeeBps.toString(),
             swapFeeToken: sellTokenAddress
           });
-      
-        
-      
           const response = await fetch(`${zeroXApiUrl}/swap/allowance-holder/quote?${quoteParams}`, {
             method: 'GET',
             headers: { 
@@ -660,19 +636,13 @@ export class SdkService {
               'Accept': 'application/json'
             }
           });
-      
           if (!response.ok) {        
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-      
           const quoteData = await response.json();
         
-      
           const gasLimit = priceData.gas;
-          const gasPrice = Math.ceil(Number(priceData.gasPrice / 1_000_000_000)).toString();
-         // const totalGasCost = BigInt(gasLimit) * BigInt(gasPrice);
-      
-          
+          const gasPrice = Math.ceil(Number(priceData.gasPrice / 1_000_000_000)).toString();       
       
           let txResult;
       
@@ -689,10 +659,8 @@ export class SdkService {
                 gasPrice: gasPrice,
               },
             });
-           
-          
-            const approvalTransaction = await sdk.blockchain.getTransaction(approveTx.txId);
-          
+  
+            const approvalTransaction = await sdk.blockchain.getTransaction(approveTx.txId);        
           }
       
               txResult = await sdk.transaction.send.transferSignedTransaction({
@@ -705,17 +673,6 @@ export class SdkService {
                 gasPrice: gasPrice,
               }
             });
-            // txResult = await sdk.erc20.send.transferSignedTransaction({
-            //   to: quoteData.transaction.to,
-            //   amount: amount,
-            //   fromPrivateKey,
-            //   contractAddress: sellTokenAddress,
-            //   digits: decimals,
-            //   data: quoteData.transaction.data,
-            //   fee: isEth? {
-            //     gasLimit: gasLimit,
-            //     gasPrice: gasPrice,
-            //   } : undefined,
             
           } else {
           
@@ -730,14 +687,7 @@ export class SdkService {
               }
             });
           }
-      
-         
-      
-          // Log balance after swap
-          const balanceAfter = Number((await sdk.blockchain.getBlockchainAccountBalance(fromAddress)).balance);
-          
-      
-          // Получение цен токенов для конвертации в USD
+
           const [fromTokenPriceInfo, toTokenPriceInfo] = await Promise.all([
             this.cmcService.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : nativeSymbol }),
             this.cmcService.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : nativeSymbol })
@@ -764,22 +714,8 @@ export class SdkService {
           return ethresult;
 
         case Network.SOL:
-
         const tatumRpcUrl = 'https://mainnet.helius-rpc.com/?api-key=807425fe-f056-4cc1-b067-b4ce0a2f2a79';
-  
-        console.log("Creating connection");
         const connection = new Connection(tatumRpcUrl);
-        
-        try {
-          const blockHeight = await connection.getBlockHeight();
-          console.log('Current block height:', blockHeight);
-        } catch (error) {
-          console.error('Error connecting to Solana network:', error);
-          throw new Error(`Failed to connect to Solana network: ${error instanceof Error ? error.message : String(error)}`);
-        }
-        
-        console.log("Creating Solana Keypair");
-
         const solplatformFeeBps = 100
 
         const swapResult = await jupiterSwap(
@@ -792,19 +728,15 @@ export class SdkService {
           solplatformFeeBps
         );
         
-        console.log("jupiterSwap result:", swapResult);
-        
         if (swapResult.status === 'error') {
           throw new Error(swapResult.message);
         }
         
-        // Get token prices for USD conversion
         const [fromTokenPriceSol, toTokenPriceSol] = await Promise.all([
           this.getTokenPrice({ address: fromTokenAddress, symbol: fromTokenAddress ? undefined : "SOL" }),
           this.getTokenPrice({ address: toTokenAddress, symbol: toTokenAddress ? undefined : "SOL" })
         ]);
         
-        // Prepare and return the result
         const solResult = {
           type: TransactionType.SWAP,
           network: Network.SOL,
@@ -822,26 +754,18 @@ export class SdkService {
           fee: 0,
           fee_usd: 0
         };
-        
-        console.log("Final result:", solResult);
 
         return solResult;
       
-
         case Network.TON:
           const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
-        
-  
           const tonVault = this.tonSecondSdk.open(await factory.getNativeVault());
         
-  
           const fromToken = fromTokenAddress ? Asset.jetton(Address.parse(fromTokenAddress)) : Asset.native();
           const toToken = toTokenAddress ? Asset.jetton(Address.parse(toTokenAddress)) : Asset.native();
-          
-  
+        
           const pool = this.tonSecondSdk.open(await factory.getPool(PoolType.VOLATILE, [fromToken, toToken]));
          
-  
           if ((await pool.getReadinessStatus()) !== ReadinessStatus.READY) {
             throw new Error(`Pool (${fromToken}, ${toToken}) does not exist.`);
           }
@@ -852,22 +776,15 @@ export class SdkService {
   
           const amountIn = toNano(amount);
          
-  
-          // Create and sign the transaction
           const pair: KeyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
-         
-  
+          
           const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
          
-  
           const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
           const seqno: number = await contract.getSeqno();
          
-  
           const transferId: string = uuid();
           
-  
-          // Create a Sender object
           const sender: Sender = {
             address: wallet.address,
             send: async (args: SenderArguments) => {
@@ -888,21 +805,17 @@ export class SdkService {
             }
           };
   
-          // Use sendSwap method
           if (fromToken.toString() === Asset.native().toString()) {
-           
             await tonVault.sendSwap(sender, {
               poolAddress: pool.address,
               amount: amountIn,
               gasAmount: toNano("0.25"),
             });
           } else {
-           
             if (!fromTokenAddress) {
               throw new Error('fromTokenAddress is required for Jetton swap');
             }
             const jettonVault = this.tonSecondSdk.open(await factory.getJettonVault(Address.parse(fromTokenAddress)));
-           
             const jettonRoot = this.tonSecondSdk.open(JettonRoot.createFromAddress(Address.parse(fromTokenAddress)));
             const jettonWallet = this.tonSecondSdk.open(await jettonRoot.getWallet(sender.address));
            
@@ -935,8 +848,6 @@ export class SdkService {
           const fromTokenPrice = await safeGetTokenPrice(fromTokenAddress, fromToken.toString());
           const toTokenPrice = await safeGetTokenPrice(toTokenAddress, toToken.toString());
       
-         
-  
           const result = {
             type: TransactionType.SWAP,
             network: Network.TON,
@@ -955,7 +866,6 @@ export class SdkService {
             fee_usd: 0,
           };
   
-          
           return result;
   
         default:
