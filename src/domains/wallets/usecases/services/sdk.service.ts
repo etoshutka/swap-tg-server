@@ -829,7 +829,7 @@ export class SdkService {
               poolAddress: pool.address,
               amount: amountIn,
               gasAmount: toNano("0.25"),
-              //limit: minAmountOut,
+              limit: minAmountOut,
               swapParams: {
                 referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               },
