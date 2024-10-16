@@ -801,7 +801,6 @@ export class SdkService {
          
           const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
           const seqno: number = await contract.getSeqno();
-          
           const transferId: string = uuid();
           
           const sender: Sender = {
@@ -816,7 +815,7 @@ export class SdkService {
                     to: args.to,
                     value: args.value,
                     body: args.body,
-                    bounce: false
+                    bounce: true
                   })
                 ],
               });
