@@ -848,8 +848,10 @@ export class SdkService {
               responseAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               forwardAmount: toNano("0.25"),
               forwardPayload: VaultJetton.createSwapPayload({ 
-                poolAddress: pool.address,  swapParams: {
-                referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
+                limit: minAmountOut,
+                poolAddress: pool.address,  
+                swapParams: {
+                  referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
                 },
               }),
             });
