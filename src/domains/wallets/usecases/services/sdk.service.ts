@@ -811,7 +811,7 @@ export class SdkService {
               amount: amountIn,
               gasAmount: toNano("0.25"),
               swapParams: {
-                recipientAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
+                referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               },
             });
           } else {
