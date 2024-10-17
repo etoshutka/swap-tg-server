@@ -161,7 +161,7 @@ export class SdkService {
       case Network.TON: {
         const mnemonics: string[] = await mnemonicNew();
         const { publicKey, secretKey } = await mnemonicToPrivateKey(mnemonics);
-        const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey });
+        const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workChain: 0, publicKey });
         const public_key: string = Buffer.from(publicKey).toString("base64");
         const private_key: string = Buffer.from(secretKey).toString("base64");
         return { address: wallet.address.toString(), mnemonic: mnemonics.join(" "), public_key, private_key };
@@ -187,7 +187,7 @@ export class SdkService {
         return { private_key, ...wallet };
       case Network.TON:
         const pair: KeyPair = await mnemonicToPrivateKey(params.private_key.split(" "));
-        const ton_wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
+        const ton_wallet: WalletContractV5R1 = WalletContractV5R1.create({ workChain: 0, publicKey: pair.publicKey });
         const ton_public_key: string = Buffer.from(pair.publicKey).toString("base64");
         const ton_private_key: string = Buffer.from(pair.secretKey).toString("base64");
         return { address: ton_wallet.address.toString(), public_key: ton_public_key, private_key: ton_private_key, mnemonic: params.private_key };
@@ -411,7 +411,7 @@ export class SdkService {
           };
         case Network.TON:
           const pair: KeyPair = await mnemonicToPrivateKey(FROM_PRIVATE_KEY.split(" "));
-          const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
+          const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workChain: 0, publicKey: pair.publicKey });
           const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
           const seqno: number = await contract.getSeqno();
           const transferId: number = Math.floor(Math.random() * (999_999_999 - 100_000_000 + 1) + 100_000_000);
@@ -527,7 +527,7 @@ export class SdkService {
           };
         case Network.TON:
           const pair: KeyPair = await mnemonicToPrivateKey(FROM_PRIVATE_KEY.split(" "));
-          const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
+          const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workChain: 0, publicKey: pair.publicKey });
           const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
           const seqno: number = await contract.getSeqno();
           const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
@@ -773,7 +773,7 @@ export class SdkService {
           // Create wallet contract
           const keyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
           const wallet = WalletContractV5R1.create({
-            workchain: 0,
+            workChain: 0,
             publicKey: keyPair.publicKey,
           });
           const contract = client.open(wallet);
