@@ -388,86 +388,87 @@ export class ScheduleService {
     }
     
     private async processTonSwap(t: TransactionModel): Promise<void> {
-      const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
+      try {
+        this.logger("processTonSwap").log(`Starting processing of swap transaction ${t.id}`);
     
-      const queryId: string = t.hash.split(":")[0];
+        const tonPrice: number = await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] }).then(rates => rates.rates.TON.prices.USD);
+        this.logger("processTonSwap").log(`Current TON price: ${tonPrice} USD`);
     
-      const tonTransactionResults: Transaction[] = [];
+        const queryId: string = t.hash.split(":")[0];
+        this.logger("processTonSwap").log(`Query ID: ${queryId}`);
     
-      const maxAttempts = 30; // Увеличиваем количество попыток
-      let attempts = 0;
+        const tonTransactionResults: Transaction[] = [];
     
-      const checkQueryId = (msg: any) => {
-        if (msg?.decodedBody?.queryId && msg.decodedBody.queryId.toString() === queryId) {
-          return true;
+        const maxAttempts = 30;
+        let attempts = 0;
+    
+        const checkQueryId = (msg: any) => {
+          if (msg?.decodedBody?.queryId && msg.decodedBody.queryId.toString() === queryId) {
+            return true;
+          }
+          if (msg?.payload) {
+            const payloadStr = msg.payload.toString();
+            return payloadStr.includes(`query_id:${queryId}`);
+          }
+          return false;
+        };
+    
+        while (attempts < maxAttempts) {
+          attempts++;
+          this.logger("processTonSwap").log(`Attempt ${attempts} of ${maxAttempts}`);
+    
+          await new Promise((resolve) => setTimeout(resolve, 10000));
+    
+          const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+          this.logger("processTonSwap").log(`Retrieved ${walletTransactions.transactions.length} transactions for wallet ${t.from}`);
+    
+          const relatedTransactions = walletTransactions.transactions.filter((tx) => 
+            tx.outMsgs?.some(checkQueryId) || (tx.inMsg && checkQueryId(tx.inMsg))
+          );
+          this.logger("processTonSwap").log(`Found ${relatedTransactions.length} related transactions`);
+    
+          tonTransactionResults.push(...relatedTransactions);
+    
+          // Проверяем, завершился ли своп
+          const lastTx = tonTransactionResults[tonTransactionResults.length - 1];
+          if (lastTx && lastTx.outMsgs && lastTx.outMsgs.some(msg => msg.destination === tonTransactionResults[0].inMsg?.source)) {
+            this.logger("processTonSwap").log(`Swap completed after ${attempts} attempts`);
+            break;
+          }
         }
-        if (msg?.payload) {
-          const payloadStr = msg.payload.toString();
-          return payloadStr.includes(`query_id:${queryId}`);
-        }
-        return false;
-      };
     
-      while (attempts < maxAttempts) {
-        attempts++;
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-        const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+        // Расчет общей комиссии
+        let txFee: number = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
+        const txFeeUsd: number = txFee * tonPrice;
     
-        const relatedTransactions = walletTransactions.transactions.filter((tx) => 
-          tx.outMsgs?.some(checkQueryId) || (tx.inMsg && checkQueryId(tx.inMsg))
+        // Используем хэш последней транзакции как основной хэш свопа
+        const txHash: string = tonTransactionResults[tonTransactionResults.length - 1]?.hash || '';
+    
+        // Определение статуса свопа
+        const allSuccessful = tonTransactionResults.every(tx => tx.success);
+        const expectedTransferOccurred = tonTransactionResults.some(tx => 
+          tx.outMsgs && tx.outMsgs.some(msg => 
+            msg.destination === tonTransactionResults[0].inMsg?.source && 
+            msg.value > 0 // Check if the value transferred back is significant
+          )
+        );
+        const txStatus: TransactionStatus = allSuccessful && expectedTransferOccurred ? TransactionStatus.SUCCESS : TransactionStatus.FAILED;
+    
+        await this.transactionRepo.update(
+          { id: t.id }, 
+          { 
+            fee: txFee, 
+            hash: txHash, 
+            status: txStatus, 
+            fee_usd: txFeeUsd 
+          }
         );
     
-        tonTransactionResults.push(...relatedTransactions);
-    
-        // Проверяем, завершился ли своп
-        if (this.isSwapCompleted(tonTransactionResults)) {
-          break;
-        }
+        this.logger("processTonSwap").log(`Successfully processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON, related transactions: ${tonTransactionResults.length}`);
+      } catch (error) {
+        this.logger("processTonSwap").error(`Error processing swap for transaction ${t.id}: ${error.message}`, error.stack);
+        throw error; // Re-throw the error to be caught by the calling function
       }
-    
-      // Расчет общей комиссии
-      let txFee: number = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
-    
-      const txFeeUsd: number = txFee * tonPrice;
-    
-      // Используем хэш последней транзакции как основной хэш свопа
-      const txHash: string = tonTransactionResults[tonTransactionResults.length - 1]?.hash || '';
-    
-      // Определение статуса свопа
-      const txStatus: TransactionStatus = this.determineSwapStatus(tonTransactionResults);
-    
-      await this.transactionRepo.update(
-        { id: t.id }, 
-        { 
-          fee: txFee, 
-          hash: txHash, 
-          status: txStatus, 
-          fee_usd: txFeeUsd 
-        }
-      );
-    
-      this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON, related transactions: ${tonTransactionResults.length}`);
-    }
-    
-    private isSwapCompleted(transactions: Transaction[]): boolean {
-      // Implement logic to determine if the swap is completed
-      // For example, check if the last transaction is a transfer back to the user's wallet
-      const lastTx = transactions[transactions.length - 1];
-      return lastTx && lastTx.outMsgs && lastTx.outMsgs.some(msg => msg.destination === transactions[0].inMsg?.source);
-    }
-    
-    private determineSwapStatus(transactions: Transaction[]): TransactionStatus {
-      // Implement more complex logic to determine the final status
-      // For example, check if all transactions are successful and the expected token transfer occurred
-      const allSuccessful = transactions.every(tx => tx.success);
-      const expectedTransferOccurred = transactions.some(tx => 
-        tx.outMsgs && tx.outMsgs.some(msg => 
-          msg.destination === transactions[0].inMsg?.source && 
-          msg.value > 0 // Check if the value transferred back is significant
-        )
-      );
-    
-      return allSuccessful && expectedTransferOccurred ? TransactionStatus.SUCCESS : TransactionStatus.FAILED;
     }
     
     @Cron(CronExpression.EVERY_30_SECONDS)
