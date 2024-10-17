@@ -801,7 +801,7 @@ export class SdkService {
               userWalletAddress: Address.parse(fromAddress),
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toNano(amount),
-              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
+              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
               proxyTon,
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
@@ -814,7 +814,7 @@ export class SdkService {
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toNano(amount),
               askJettonAddress: Address.parse(toTokenAddress),
-              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
+              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               referralValue: 100
@@ -827,7 +827,7 @@ export class SdkService {
             seqno,
             secretKey: keyPair.secretKey,
             messages: [internal(txParams)],
-            sendMode: 1
+            sendMode: SendMode.PAY_GAS_SEPARATELY // Используем SendMode.PAY_GAS_SEPARATELY вместо 1
           });
           const transferId: string = uuid();
         
