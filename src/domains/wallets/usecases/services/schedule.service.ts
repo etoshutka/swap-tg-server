@@ -389,95 +389,85 @@ export class ScheduleService {
     
     private async processTonSwap(t: TransactionModel): Promise<void> {
       const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
-          
-              const isJettonTransfer: boolean = t.hash.includes("swap");
-          
-              const transferId: string = isJettonTransfer ? t.hash.split(":")[0] : t.hash;
-          
-          
-              let isTonTransactionEnded: boolean = false;
-              let tonTransactionResult: Transaction | undefined;
-              const tonTransactionResults: Transaction[] = [];
-          
-              if (!isJettonTransfer) {
-              
-                while (!isTonTransactionEnded) {
-                  await new Promise((resolve) => setTimeout(resolve, 10000));
-                  const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
-            
-                  const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => tx.outMsgs?.[0]?.decodedBody?.text === transferId);
-          
-                  if (transaction) {
-                
-                    tonTransactionResult = transaction;
-                    isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
-                
-                  } else {
-                
-                  }
-                }
-              } else {
-                
-                while (!isTonTransactionEnded) {
-                  await new Promise((resolve) => setTimeout(resolve, 10000));
-                  const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
-              
-                  const transaction: Transaction | undefined = walletTransactions.transactions.find((t) => JSON.stringify(t).includes(String(transferId)));
-          
-                  if (transaction && tonTransactionResults.length < 2 && (transaction.success || transaction.destroyed || transaction.aborted)) {
-              
-                    tonTransactionResults.push(transaction);
-              
-                  }
-          
-                  if (tonTransactionResults.length === 2) {
-                    isTonTransactionEnded = true;
-              
-                  }
-                }
-              }
-          
-              let txFee: number;
-              if (isJettonTransfer) {
-                txFee = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
-        
-              } else if (tonTransactionResult) {
-                txFee = Number(tonTransactionResult.totalFees) / 1e9;
-        
-              } else {
-        
-                throw new Error("Transaction result is undefined");
-              }
-          
-              const txFeeUsd: number = txFee * tonPrice;
-        
-          
-              const txHash: string = isJettonTransfer 
-                ? tonTransactionResults[tonTransactionResults.length - 1].hash 
-                : tonTransactionResult?.hash || '';
-          
-          
-              const txStatus: TransactionStatus = isJettonTransfer
-                ? tonTransactionResults[tonTransactionResults.length - 1].success
-                  ? TransactionStatus.SUCCESS
-                  : TransactionStatus.FAILED
-                : tonTransactionResult?.success
-                  ? TransactionStatus.SUCCESS
-                  : TransactionStatus.FAILED;
-          
-          
-              await this.transactionRepo.update(
-                { id: t.id }, 
-                { 
-                  fee: txFee, 
-                  hash: txHash, 
-                  status: txStatus, 
-                  fee_usd: txFeeUsd 
-                }
-              );
+    
+      const isSwap: boolean = t.hash.includes("swap");
+      const transferId: string = isSwap ? t.hash.split(":")[0] : t.hash;
+    
+      let isTonTransactionEnded: boolean = false;
+      let tonTransactionResult: Transaction | undefined;
+      const tonTransactionResults: Transaction[] = [];
+    
+      const maxAttempts = 5;
+      let attempts = 0;
+    
+      while (!isTonTransactionEnded && attempts < maxAttempts) {
+        attempts++;
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+        const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+    
+        const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => {
+          if (isSwap) {
+            // Для свопа проверяем наличие transferId в любом поле транзакции
+            return Object.values(tx).some(value => 
+              typeof value === 'string' && value.includes(transferId)
+            );
+          } else {
+            // Для обычного перевода проверяем text в decodedBody
+            return tx.outMsgs?.[0]?.decodedBody?.text === transferId;
           }
-        
-
+        });
+    
+        if (transaction) {
+          tonTransactionResult = transaction;
+          isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
+          if (isSwap) {
+            tonTransactionResults.push(transaction);
+          }
+        }
+    
+        if (isSwap && tonTransactionResults.length === 2) {
+          isTonTransactionEnded = true;
+        }
+      }
+    
+      if (!isTonTransactionEnded) {
+        this.logger("processTonSwap").warn(`Transaction ${t.id} not found after ${maxAttempts} attempts`);
+        return;
+      }
+    
+      let txFee: number;
+      if (isSwap) {
+        txFee = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
+      } else if (tonTransactionResult) {
+        txFee = Number(tonTransactionResult.totalFees) / 1e9;
+      } else {
+        throw new Error("Transaction result is undefined");
+      }
+    
+      const txFeeUsd: number = txFee * tonPrice;
+    
+      const txHash: string = isSwap 
+        ? tonTransactionResults[tonTransactionResults.length - 1]?.hash || ''
+        : tonTransactionResult?.hash || '';
+    
+      const txStatus: TransactionStatus = isSwap
+        ? (tonTransactionResults[tonTransactionResults.length - 1]?.success ?? false)
+          ? TransactionStatus.SUCCESS
+          : TransactionStatus.FAILED
+        : (tonTransactionResult?.success ?? false)
+          ? TransactionStatus.SUCCESS
+          : TransactionStatus.FAILED;
+    
+      await this.transactionRepo.update(
+        { id: t.id }, 
+        { 
+          fee: txFee, 
+          hash: txHash, 
+          status: txStatus, 
+          fee_usd: txFeeUsd 
+        }
+      );
+    }
 
     @Cron(CronExpression.EVERY_30_SECONDS)
     async processReferralCommissions(): Promise<void> {
