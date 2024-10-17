@@ -389,9 +389,9 @@ export class ScheduleService {
     
     private async processTonSwap(t: TransactionModel): Promise<void> {
       const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
-    
+
       const isSwap: boolean = t.hash.includes("swap");
-      const transferId: string = isSwap ? t.hash.split(":")[0] : t.hash;
+      const queryId: string = t.hash.split(":")[0];
     
       let isTonTransactionEnded: boolean = false;
       let tonTransactionResult: Transaction | undefined;
@@ -406,26 +406,28 @@ export class ScheduleService {
         const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
     
         const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => {
-          if (isSwap) {
-            // Для свопа проверяем наличие transferId в любом поле транзакции
-            return Object.values(tx).some(value => 
-              typeof value === 'string' && value.includes(transferId)
-            );
-          } else {
-            // Для обычного перевода проверяем text в decodedBody
-            return tx.outMsgs?.[0]?.decodedBody?.text === transferId;
-          }
+          // Проверяем наличие query_id в payload входящих и исходящих сообщений
+          const checkQueryId = (msg: any) => {
+            if (msg?.decodedBody?.queryId && msg.decodedBody.queryId.toString() === queryId) {
+              return true;
+            }
+            if (msg?.payload) {
+              const payloadStr = msg.payload.toString();
+              return payloadStr.includes(`query_id:${queryId}`);
+            }
+            return false;
+          };
+    
+          return tx.outMsgs?.some(checkQueryId) || tx.inMsg && checkQueryId(tx.inMsg);
         });
     
         if (transaction) {
           tonTransactionResult = transaction;
           isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
-          if (isSwap) {
-            tonTransactionResults.push(transaction);
-          }
+          tonTransactionResults.push(transaction);
         }
     
-        if (isSwap && tonTransactionResults.length === 2) {
+        if (tonTransactionResults.length === 2) {
           isTonTransactionEnded = true;
         }
       }
@@ -435,28 +437,15 @@ export class ScheduleService {
         return;
       }
     
-      let txFee: number;
-      if (isSwap) {
-        txFee = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
-      } else if (tonTransactionResult) {
-        txFee = Number(tonTransactionResult.totalFees) / 1e9;
-      } else {
-        throw new Error("Transaction result is undefined");
-      }
+      let txFee: number = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
     
       const txFeeUsd: number = txFee * tonPrice;
     
-      const txHash: string = isSwap 
-        ? tonTransactionResults[tonTransactionResults.length - 1]?.hash || ''
-        : tonTransactionResult?.hash || '';
+      const txHash: string = tonTransactionResults[tonTransactionResults.length - 1]?.hash || '';
     
-      const txStatus: TransactionStatus = isSwap
-        ? (tonTransactionResults[tonTransactionResults.length - 1]?.success ?? false)
-          ? TransactionStatus.SUCCESS
-          : TransactionStatus.FAILED
-        : (tonTransactionResult?.success ?? false)
-          ? TransactionStatus.SUCCESS
-          : TransactionStatus.FAILED;
+      const txStatus: TransactionStatus = tonTransactionResults.every(tx => tx.success)
+        ? TransactionStatus.SUCCESS
+        : TransactionStatus.FAILED;
     
       await this.transactionRepo.update(
         { id: t.id }, 
@@ -467,6 +456,8 @@ export class ScheduleService {
           fee_usd: txFeeUsd 
         }
       );
+    
+      this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON`);
     }
 
     @Cron(CronExpression.EVERY_30_SECONDS)
