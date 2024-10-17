@@ -779,6 +779,7 @@ export class SdkService {
             publicKey: keyPair.publicKey,
           });
           const contract = client.open(wallet);
+          const transferId: number = Math.floor(Math.random() * (999_999_999 - 100_000_000 + 1) + 100_000_000);
         
           const fromIsNative = !fromTokenAddress;
           const toIsNative = !toTokenAddress;
@@ -793,7 +794,7 @@ export class SdkService {
               offerAmount: toNano(amount),
               askJettonAddress: Address.parse(toTokenAddress),
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
-              queryId: Date.now(),
+              queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
              // referralValue: 100
             });
@@ -805,7 +806,7 @@ export class SdkService {
               offerAmount: toNano(amount),
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
               proxyTon: new pTON.v1(),
-              queryId: Date.now(),
+              queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
              // referralValue: 100
             });
@@ -831,7 +832,7 @@ export class SdkService {
             messages: [internal(txParams)],
             sendMode: SendMode.PAY_GAS_SEPARATELY // Используем SendMode.PAY_GAS_SEPARATELY вместо 1
           });
-          const transferId: string = uuid();
+          
         
           const safeGetTokenPrice = async (address: string | null, symbol: string): Promise<number> => {
             try {
@@ -857,7 +858,7 @@ export class SdkService {
             type: TransactionType.SWAP,
             network: Network.TON,
             status: TransactionStatus.PENDING,
-            hash: transferId,
+            hash: `${transferId}:swap`,
             fromAmount: Number(amount),
             fromAmount_usd: Number(amount) * fromTokenPrice,
             toAmount: 0, // Actual amount will be known after the swap
