@@ -407,24 +407,6 @@ export class ScheduleService {
           }
           return false;
         };
-    
-        const STONFI_PAYMENT_REQUEST_OPCODE = '0xf93bb43f';
-        const JETTON_TRANSFER_OPCODE = '0xf8a7ea5';
-        const JETTON_NOTIFY_OPCODE = '0x7362d09c';
-    
-        const isSwapCompleted = (transactions: Transaction[]) => {
-          if (transactions.length < 2) return false;
-          
-          const hasSwapInitiation = transactions.some(tx => 
-            tx.outMsgs?.some(msg => msg.opCode === STONFI_PAYMENT_REQUEST_OPCODE)
-          );
-          
-          const hasJettonTransfer = transactions.some(tx => 
-            tx.outMsgs?.some(msg => msg.opCode === JETTON_TRANSFER_OPCODE || msg.opCode === JETTON_NOTIFY_OPCODE)
-          );
-    
-          return hasSwapInitiation && hasJettonTransfer;
-        };
       
         while (!isTonTransactionEnded) {
           await new Promise((resolve) => setTimeout(resolve, 10000));
@@ -436,9 +418,16 @@ export class ScheduleService {
       
           tonTransactionResults.push(...relatedTransactions);
       
-          // Проверяем завершение свопа
-          if (isSwapCompleted(tonTransactionResults)) {
-            isTonTransactionEnded = true;
+          // Логируем найденные транзакции для отладки
+          this.logger("processTonSwap").log(`Found ${relatedTransactions.length} related transactions for swap ${t.id}`);
+      
+          // Проверяем, завершился ли своп
+          if (relatedTransactions.length > 0) {
+            const lastTransaction = relatedTransactions[relatedTransactions.length - 1];
+            if (lastTransaction.outMsgs?.some(msg => msg.opCode === '0x7362d09c')) { // Jetton Notify opcode
+              isTonTransactionEnded = true;
+              this.logger("processTonSwap").log(`Swap ${t.id} completed. Found Jetton Notify message.`);
+            }
           }
         }
       
@@ -451,7 +440,8 @@ export class ScheduleService {
         const txHash: string = tonTransactionResults[tonTransactionResults.length - 1]?.hash || '';
       
         // Определение статуса свопа
-        const txStatus: TransactionStatus = tonTransactionResults.every(tx => tx.success)
+        // Своп считается успешным, если последняя транзакция успешна
+        const txStatus: TransactionStatus = tonTransactionResults[tonTransactionResults.length - 1]?.success
           ? TransactionStatus.SUCCESS
           : TransactionStatus.FAILED;
       
@@ -468,6 +458,8 @@ export class ScheduleService {
         this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON, related transactions: ${tonTransactionResults.length}`);
       } catch (error) {
         this.logger("processTonSwap").error(`Error processing swap transaction ${t.id}: ${error.message}`);
+        // Логируем полную ошибку для отладки
+        console.error('Full error:', error);
       }
     }
     
