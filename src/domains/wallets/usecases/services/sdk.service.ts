@@ -6,6 +6,7 @@ import { KeyPair, mnemonicNew, mnemonicToPrivateKey } from "@ton/crypto";
 import { GetTokenPriceResult } from "../interfaces/cmc.interface";
 import { Network } from "../../domain/interfaces/wallet.interface";
 import { Api, TonApiClient, JettonBalance } from "@ton-api/client";
+import { DEX, pTON } from "@ston-fi/sdk";
 import { Asset, Factory, JettonRoot, MAINNET_FACTORY_ADDR, PoolType, ReadinessStatus, VaultJetton} from '@dedust/sdk';
 import * as cmcTypes from "../interfaces/cmc.interface";
 import * as types from "../interfaces/sdk.interface";
@@ -758,113 +759,78 @@ export class SdkService {
         return solResult;
       
         case Network.TON:
-          const factory = this.tonSecondSdk.open(Factory.createFromAddress(MAINNET_FACTORY_ADDR));
-          const tonVault = this.tonSecondSdk.open(await factory.getNativeVault());
-
-          const fromToken = fromTokenAddress ? Asset.jetton(Address.parse(fromTokenAddress)) : Asset.native();
-          const toToken = toTokenAddress ? Asset.jetton(Address.parse(toTokenAddress)) : Asset.native();
-
-          const pool = this.tonSecondSdk.open(await factory.getPool(PoolType.VOLATILE, [fromToken, toToken]));
+          const client = this.tonSecondSdk
+          const router = client.open(
+            DEX.v2_1.Router.create(
+              "EQC-NBcQOgx3bYLEMnHa9kbScJQg7meeEqsvhrlvtPsQNaxm" // Mainnet Router v2.1.0
+            )
+          );
         
-          if ((await pool.getReadinessStatus()) !== ReadinessStatus.READY) {
-            throw new Error(`Pool (${fromToken}, ${toToken}) does not exist.`);
-          }
-
-          if ((await tonVault.getReadinessStatus()) !== ReadinessStatus.READY) {
-            throw new Error('Vault (TON) does not exist.');
-          }
-          
-          const getTokenDecimals = (tokenAddress: string | null): number => {
-            const USDT_ADDRESS = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
-            return tokenAddress === USDT_ADDRESS ? 6 : 9;
-          };
-
-          const fromTokenDecimals = getTokenDecimals(fromTokenAddress);
-          const toTokenDecimals = getTokenDecimals(toTokenAddress);
-
-          const amountIn = BigInt(Math.floor(Number(amount) * 10**fromTokenDecimals));
-
-          const { amountOut: expectedAmountOut } = await pool.getEstimatedSwapOut({
-            assetIn: fromToken,
-            amountIn,
+          const proxyTon = pTON.v2_1.create(
+            "EQCcLAW537KnRg_aSPrnQJoyYjOZkzqYp6FVmRUvN1crSazV" // Mainnet pTON v2.1.0
+          );
+        
+          // Create wallet contract
+          const keyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
+          const wallet = WalletContractV5R1.create({
+            workchain: 0,
+            publicKey: keyPair.publicKey,
           });
-          const minAmountOut = (expectedAmountOut * BigInt(10000 - slippageBps)) / 10000n;
-
-          // Вычисление комиссии
-          const FEE_PERCENTAGE = 0.1; // 0.1% комиссия
-          const MINIMUM_FEE = toNano('0.01'); // Минимальная комиссия 0.01 TON
-          const calculatedFee = (amountIn * BigInt(Math.floor(FEE_PERCENTAGE * 100))) / 10000n;
-          const fee = calculatedFee > MINIMUM_FEE ? calculatedFee : MINIMUM_FEE;
-
-          const pair: KeyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
-          
-          const wallet: WalletContractV5R1 = WalletContractV5R1.create({ workchain: 0, publicKey: pair.publicKey });
+          const contract = client.open(wallet);
         
-          const contract: OpenedContract<WalletContractV5R1> = this.tonSecondSdk.open(wallet);
-          const seqno: number = await contract.getSeqno();
-          const transferId: number = Math.floor(Math.random() * (999_999_999 - 100_000_000 + 1) + 100_000_000);
-
-          const fulfillPayload: Cell = beginCell()
-            .storeUint(0xf8a7ea5, 32)
-            .storeUint(transferId, 64)
-            .storeAddress(Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw')) // Адрес для получения комиссии
-            .storeCoins(fee) // Комиссия
-            .endCell();
-          
-          const sender: Sender = {
-            address: wallet.address,
-            send: async (args: SenderArguments) => {
-              await contract.sendTransfer({
-                seqno,
-                sendMode: SendMode.PAY_GAS_SEPARATELY,
-                secretKey: pair.secretKey,
-                messages: [
-                  internal({
-                    to: args.to,
-                    value: args.value,
-                    body: args.body,
-                    bounce: true
-                  })
-                ],
-              });
-            }
-          };
-
-          if (fromToken.toString() === Asset.native().toString()) {
-            await tonVault.sendSwap(sender, {
-              poolAddress: pool.address,
-              amount: amountIn,
-              gasAmount: toNano("0.25"),
-              limit: minAmountOut,
-              swapParams: {
-                referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-                fulfillPayload: fulfillPayload,
-              },
+          const fromIsNative = !fromTokenAddress;
+          const toIsNative = !toTokenAddress;
+        
+          let txParams;
+        
+          if (fromIsNative) {
+            // TON to Jetton swap
+            txParams = await router.getSwapTonToJettonTxParams({
+              userWalletAddress: fromAddress,
+              proxyTon: proxyTon,
+              offerAmount: toNano(amount),
+              askJettonAddress: toTokenAddress,
+              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
+              queryId: Date.now(),
+              referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
+              referralValue: 0.1
+            });
+          } else if (toIsNative) {
+            // Jetton to TON swap
+            txParams = await router.getSwapJettonToTonTxParams({
+              userWalletAddress: fromAddress,
+              offerJettonAddress: fromTokenAddress,
+              offerAmount: toNano(amount),
+              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
+              proxyTon,
+              queryId: Date.now(),
+              referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
+              referralValue: 0.1
             });
           } else {
-            if (!fromTokenAddress) {
-              throw new Error('fromTokenAddress is required for Jetton swap');
-            }
-            const jettonVault = this.tonSecondSdk.open(await factory.getJettonVault(Address.parse(fromTokenAddress)));
-            const jettonRoot = this.tonSecondSdk.open(JettonRoot.createFromAddress(Address.parse(fromTokenAddress)));
-            const jettonWallet = this.tonSecondSdk.open(await jettonRoot.getWallet(sender.address));
-          
-            await jettonWallet.sendTransfer(sender, toNano("0.3"), {
-              amount: amountIn,
-              destination: jettonVault.address,
-              responseAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              forwardAmount: toNano("0.25"),
-              forwardPayload: VaultJetton.createSwapPayload({ 
-                limit: minAmountOut,
-                poolAddress: pool.address,  
-                swapParams: {
-                  referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-                  fulfillPayload: fulfillPayload,
-                },
-              }),
+            // Jetton to Jetton swap
+            txParams = await router.getSwapJettonToJettonTxParams({
+              userWalletAddress: fromAddress,
+              offerJettonAddress: fromTokenAddress,
+              offerAmount: toNano(amount),
+              askJettonAddress: toTokenAddress,
+              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
+              queryId: Date.now(),
+              referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
+              referralValue: 0.1
             });
           }
-          
+        
+          // Send the transaction
+          const seqno = await contract.getSeqno();
+          const result = await contract.sendTransfer({
+            seqno,
+            secretKey: keyPair.secretKey,
+            messages: [internal(txParams)],
+            sendMode: 1
+          });
+          const transferId: string = uuid();
+        
           const safeGetTokenPrice = async (address: string | null, symbol: string): Promise<number> => {
             try {
               if (!address && symbol.toUpperCase() === 'TON') {
@@ -881,29 +847,28 @@ export class SdkService {
               return 0;
             }
           };
-  
-          const fromTokenPrice = await safeGetTokenPrice(fromTokenAddress, fromToken.toString());
-          const toTokenPrice = await safeGetTokenPrice(toTokenAddress, toToken.toString());
-      
-          const result = {
+        
+          const fromTokenPrice = await safeGetTokenPrice(fromTokenAddress, fromIsNative ? 'TON' : '');
+          const toTokenPrice = await safeGetTokenPrice(toTokenAddress, toIsNative ? 'TON' : '');
+        
+          const tonresult = {
             type: TransactionType.SWAP,
             network: Network.TON,
             status: TransactionStatus.PENDING,
-            hash: `${transferId}:swap`,
+            hash: transferId,
             fromAmount: Number(amount),
             fromAmount_usd: Number(amount) * fromTokenPrice,
-            toAmount: 0,
+            toAmount: 0, // Actual amount will be known after the swap
             toAmount_usd: 0,
             from: fromAddress,
             to: fromAddress,
             currency: 'TON',
-            fromCurrency: fromTokenAddress ? fromToken.toString().replace('jetton:', '') : 'TON',
-            toCurrency: toTokenAddress ? toToken.toString().replace('jetton:', '') : 'TON',
-            fee: 0,
-            fee_usd: 0,
+            fromCurrency: fromIsNative ? 'TON' : fromTokenAddress,
+            toCurrency: toIsNative ? 'TON' : toTokenAddress,
+            fee: Number(txParams.value) / 1e9, // Convert from nanoTON to TON
+            fee_usd: (Number(txParams.value) / 1e9) * fromTokenPrice,
           };
-  
-          return result;
+          return tonresult
   
         default:
           throw new Error(`Unsupported network: ${network}`);
