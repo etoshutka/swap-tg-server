@@ -793,7 +793,7 @@ export class SdkService {
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: toNano(0.1)
+              referralValue: 100
             });
           } else if (toIsNative) {
             // Jetton to TON swap
@@ -805,7 +805,7 @@ export class SdkService {
               proxyTon,
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: toNano(0.1)
+              referralValue: 100
             });
           } else {
             // Jetton to Jetton swap
@@ -817,7 +817,7 @@ export class SdkService {
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: toNano(0.1)
+              referralValue: 100
             });
           }
         
