@@ -390,59 +390,57 @@ export class ScheduleService {
     private async processTonSwap(t: TransactionModel): Promise<void> {
       const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
 
-      const isSwap: boolean = t.hash.includes("swap");
       const queryId: string = t.hash.split(":")[0];
     
       let isTonTransactionEnded: boolean = false;
-      let tonTransactionResult: Transaction | undefined;
       const tonTransactionResults: Transaction[] = [];
     
-      const maxAttempts = 5;
+      const maxAttempts = 10; // Увеличим максимальное количество попыток
       let attempts = 0;
+    
+      const checkQueryId = (msg: any) => {
+        if (msg?.decodedBody?.queryId && msg.decodedBody.queryId.toString() === queryId) {
+          return true;
+        }
+        if (msg?.payload) {
+          const payloadStr = msg.payload.toString();
+          return payloadStr.includes(`query_id:${queryId}`);
+        }
+        return false;
+      };
     
       while (!isTonTransactionEnded && attempts < maxAttempts) {
         attempts++;
         await new Promise((resolve) => setTimeout(resolve, 10000));
         const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
     
-        const transaction: Transaction | undefined = walletTransactions.transactions.find((tx) => {
-          // Проверяем наличие query_id в payload входящих и исходящих сообщений
-          const checkQueryId = (msg: any) => {
-            if (msg?.decodedBody?.queryId && msg.decodedBody.queryId.toString() === queryId) {
-              return true;
-            }
-            if (msg?.payload) {
-              const payloadStr = msg.payload.toString();
-              return payloadStr.includes(`query_id:${queryId}`);
-            }
-            return false;
-          };
+        const relatedTransactions = walletTransactions.transactions.filter((tx) => 
+          tx.outMsgs?.some(checkQueryId) || (tx.inMsg && checkQueryId(tx.inMsg))
+        );
     
-          return tx.outMsgs?.some(checkQueryId) || tx.inMsg && checkQueryId(tx.inMsg);
-        });
+        tonTransactionResults.push(...relatedTransactions);
     
-        if (transaction) {
-          tonTransactionResult = transaction;
-          isTonTransactionEnded = transaction.success || transaction.destroyed || transaction.aborted;
-          tonTransactionResults.push(transaction);
-        }
-    
-        if (tonTransactionResults.length === 2) {
+        // Проверяем, завершился ли своп
+        const lastTransaction = relatedTransactions[relatedTransactions.length - 1];
+        if (lastTransaction && (lastTransaction.success || lastTransaction.destroyed || lastTransaction.aborted)) {
           isTonTransactionEnded = true;
         }
       }
     
       if (!isTonTransactionEnded) {
-        this.logger("processTonSwap").warn(`Transaction ${t.id} not found after ${maxAttempts} attempts`);
-        return;
+        this.logger("processTonSwap").warn(`Transaction ${t.id} not fully processed after ${maxAttempts} attempts`);
+        // Можно решить, обновлять ли статус транзакции здесь или нет
       }
     
+      // Расчет общей комиссии
       let txFee: number = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
     
       const txFeeUsd: number = txFee * tonPrice;
     
+      // Используем хэш последней транзакции как основной хэш свопа
       const txHash: string = tonTransactionResults[tonTransactionResults.length - 1]?.hash || '';
     
+      // Определение статуса свопа
       const txStatus: TransactionStatus = tonTransactionResults.every(tx => tx.success)
         ? TransactionStatus.SUCCESS
         : TransactionStatus.FAILED;
@@ -457,9 +455,8 @@ export class ScheduleService {
         }
       );
     
-      this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON`);
+      this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON, related transactions: ${tonTransactionResults.length}`);
     }
-
     @Cron(CronExpression.EVERY_30_SECONDS)
     async processReferralCommissions(): Promise<void> {
       console.log("processReferralCommissions")

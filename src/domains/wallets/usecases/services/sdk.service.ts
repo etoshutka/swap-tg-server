@@ -798,6 +798,7 @@ export class SdkService {
             return BigInt(Math.floor(Number(value) * 10**decimals));
           };
           
+
           let txParams;
         
           if (fromIsNative) {
@@ -807,7 +808,7 @@ export class SdkService {
               proxyTon: new pTON.v1(),
               offerAmount: toTokenNano(amount, fromTokenDecimals),
               askJettonAddress: Address.parse(toTokenAddress),
-              minAskAmount: (toTokenNano(amount, toTokenDecimals) * BigInt(10000 - slippageBps)) / 10000n,
+              minAskAmount: "1",
               queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
              // referralValue: 100
@@ -818,7 +819,7 @@ export class SdkService {
               userWalletAddress: Address.parse(fromAddress),
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toTokenNano(amount, fromTokenDecimals),
-              minAskAmount: (toTokenNano(amount, toTokenDecimals) * BigInt(10000 - slippageBps)) / 10000n,
+              minAskAmount: "1",
               proxyTon: new pTON.v1(),
               queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
@@ -831,8 +832,8 @@ export class SdkService {
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toTokenNano(amount, fromTokenDecimals),
               askJettonAddress: Address.parse(toTokenAddress),
-              minAskAmount: (toTokenNano(amount, toTokenDecimals) * BigInt(10000 - slippageBps)) / 10000n,
-              queryId: Date.now(),
+              minAskAmount: "1",
+              queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               //referralValue: 100
             });
@@ -882,8 +883,8 @@ export class SdkService {
             currency: 'TON',
             fromCurrency: fromIsNative ? 'TON' : fromTokenAddress,
             toCurrency: toIsNative ? 'TON' : toTokenAddress,
-            fee: Number(txParams.value) / 10**9, // Convert from nanoTON to TON
-            fee_usd: (Number(txParams.value) / 10**9) * fromTokenPrice,
+            fee: 0,
+            fee_usd: 0
           };
           return tonresult
   
