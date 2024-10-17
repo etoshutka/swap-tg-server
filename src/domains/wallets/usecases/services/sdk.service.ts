@@ -817,7 +817,7 @@ export class SdkService {
             txParams = await router.getSwapJettonToTonTxParams({
               userWalletAddress: Address.parse(fromAddress),
               offerJettonAddress: Address.parse(fromTokenAddress),
-              offerAmount: toNano(amount),
+              offerAmount: toTokenNano(amount, fromTokenDecimals),
               minAskAmount: toNano(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
               proxyTon: new pTON.v1(),
               queryId: transferId,
@@ -829,7 +829,7 @@ export class SdkService {
             txParams = await router.getSwapJettonToJettonTxParams({
               userWalletAddress: Address.parse(fromAddress),
               offerJettonAddress: Address.parse(fromTokenAddress),
-              offerAmount: toNano(amount),
+              offerAmount: toTokenNano(amount, fromTokenDecimals),
               askJettonAddress: Address.parse(toTokenAddress),
               minAskAmount: toTokenNano(Math.floor(Number(amount) * (10000 - slippageBps) / 10000), toTokenDecimals).toString(),
               queryId: Date.now(),
