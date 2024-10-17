@@ -783,7 +783,21 @@ export class SdkService {
         
           const fromIsNative = !fromTokenAddress;
           const toIsNative = !toTokenAddress;
-        
+
+
+          const getTokenDecimals = (tokenAddress: string | null): number => {
+            // Адрес USDT в сети TON
+            const USDT_ADDRESS = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
+            return tokenAddress === USDT_ADDRESS ? 6 : 9;
+          };
+
+          const fromTokenDecimals = getTokenDecimals(fromTokenAddress);
+          const toTokenDecimals = getTokenDecimals(toTokenAddress);
+
+          const toTokenNano = (value: string | number, decimals: number): bigint => {
+            return BigInt(Math.floor(Number(value) * 10**decimals));
+          };
+          
           let txParams;
         
           if (fromIsNative) {
@@ -793,7 +807,7 @@ export class SdkService {
               proxyTon: new pTON.v1(),
               offerAmount: toNano(amount),
               askJettonAddress: Address.parse(toTokenAddress),
-              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
+              minAskAmount: toTokenNano(Math.floor(Number(amount) * (10000 - slippageBps) / 10000),toTokenDecimals).toString(),
               queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
              // referralValue: 100
@@ -804,7 +818,7 @@ export class SdkService {
               userWalletAddress: Address.parse(fromAddress),
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toNano(amount),
-              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
+              minAskAmount: toNano(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
               proxyTon: new pTON.v1(),
               queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
@@ -817,7 +831,7 @@ export class SdkService {
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toNano(amount),
               askJettonAddress: Address.parse(toTokenAddress),
-              minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
+              minAskAmount: toTokenNano(Math.floor(Number(amount) * (10000 - slippageBps) / 10000), toTokenDecimals).toString(),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               //referralValue: 100
@@ -868,8 +882,8 @@ export class SdkService {
             currency: 'TON',
             fromCurrency: fromIsNative ? 'TON' : fromTokenAddress,
             toCurrency: toIsNative ? 'TON' : toTokenAddress,
-            fee: Number(txParams.value) / 1e9, // Convert from nanoTON to TON
-            fee_usd: (Number(txParams.value) / 1e9) * fromTokenPrice,
+            fee: Number(txParams.value) / 10**9, // Convert from nanoTON to TON
+            fee_usd: (Number(txParams.value) / 10**9) * fromTokenPrice,
           };
           return tonresult
   
