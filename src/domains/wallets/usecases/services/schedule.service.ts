@@ -387,16 +387,17 @@ export class ScheduleService {
       }
     }
     
+    
     private async processTonSwap(t: TransactionModel): Promise<void> {
       const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
-
-      const queryId: string = t.hash.split(":")[0];
     
+      const queryId: string = t.hash.split(":")[0];
       let isTonTransactionEnded: boolean = false;
       const tonTransactionResults: Transaction[] = [];
-    
-      const maxAttempts = 10; // Увеличим максимальное количество попыток
+      const maxAttempts = 20;
       let attempts = 0;
+    
+      const STONFI_PAYMENT_REQUEST_OPCODE = '0xf93bb43f';
     
       const checkQueryId = (msg: any) => {
         if (msg?.decodedBody?.queryId && msg.decodedBody.queryId.toString() === queryId) {
@@ -420,20 +421,22 @@ export class ScheduleService {
     
         tonTransactionResults.push(...relatedTransactions);
     
-        // Проверяем, завершился ли своп
+        // Проверяем завершение свопа по наличию финальной транзакции с Jetton Transfer или Notify
         const lastTransaction = relatedTransactions[relatedTransactions.length - 1];
-        if (lastTransaction && (lastTransaction.success || lastTransaction.destroyed || lastTransaction.aborted)) {
+        if (lastTransaction && lastTransaction.outMsgs?.some(msg => msg.opCode === '0x0f8a7ea5' || msg.opCode === '0x0f8a7ea5')) {
           isTonTransactionEnded = true;
         }
       }
     
       if (!isTonTransactionEnded) {
         this.logger("processTonSwap").warn(`Transaction ${t.id} not fully processed after ${maxAttempts} attempts`);
-        // Можно решить, обновлять ли статус транзакции здесь или нет
+        return;
       }
     
-      // Расчет общей комиссии
-      let txFee: number = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
+      // Расчет комиссии только для транзакций с StonfiPaymentRequest opcode
+      let txFee: number = tonTransactionResults
+        .filter(tx => tx.outMsgs?.some(msg => msg.opCode === STONFI_PAYMENT_REQUEST_OPCODE))
+        .reduce((acc, tx) => acc + Number(tx.totalFees), 0) / 1e9;
     
       const txFeeUsd: number = txFee * tonPrice;
     
@@ -457,6 +460,7 @@ export class ScheduleService {
     
       this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON, related transactions: ${tonTransactionResults.length}`);
     }
+    
     @Cron(CronExpression.EVERY_30_SECONDS)
     async processReferralCommissions(): Promise<void> {
       console.log("processReferralCommissions")
