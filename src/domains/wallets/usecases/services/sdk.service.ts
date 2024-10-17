@@ -762,12 +762,12 @@ export class SdkService {
           const client = this.tonSecondSdk
           const router = client.open(
             DEX.v2_1.Router.create(
-              "EQC-NBcQOgx3bYLEMnHa9kbScJQg7meeEqsvhrlvtPsQNaxm" // Mainnet Router v2.1.0
+              "kQALh-JBBIKK7gr0o4AVf9JZnEsFndqO0qTCyT-D-yBsWk0v" // Mainnet Router v2.1.0
             )
           );
         
           const proxyTon = pTON.v2_1.create(
-            "EQCcLAW537KnRg_aSPrnQJoyYjOZkzqYp6FVmRUvN1crSazV" // Mainnet pTON v2.1.0
+            "kQACS30DNoUQ7NfApPvzh7eBmSZ9L4ygJ-lkNWtba8TQT-Px" // Mainnet pTON v2.1.0
           );
         
           // Create wallet contract
