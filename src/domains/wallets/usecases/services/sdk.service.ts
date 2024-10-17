@@ -807,7 +807,7 @@ export class SdkService {
               proxyTon: new pTON.v1(),
               offerAmount: toNano(amount),
               askJettonAddress: Address.parse(toTokenAddress),
-              minAskAmount: toTokenNano(Math.floor(Number(amount) * (10000 - slippageBps) / 10000),toTokenDecimals).toString(),
+              minAskAmount: (toNano(amount) * BigInt(10000 - slippageBps)) / 10000n,
               queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
              // referralValue: 100
@@ -818,7 +818,7 @@ export class SdkService {
               userWalletAddress: Address.parse(fromAddress),
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toTokenNano(amount, fromTokenDecimals),
-              minAskAmount: toNano(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
+              minAskAmount: (toTokenNano(amount, fromTokenDecimals) * BigInt(10000 - slippageBps)) / 10000n,
               proxyTon: new pTON.v1(),
               queryId: transferId,
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
@@ -831,7 +831,7 @@ export class SdkService {
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toTokenNano(amount, fromTokenDecimals),
               askJettonAddress: Address.parse(toTokenAddress),
-              minAskAmount: toTokenNano(Math.floor(Number(amount) * (10000 - slippageBps) / 10000), toTokenDecimals).toString(),
+              minAskAmount: (toTokenNano(amount, fromTokenDecimals) * BigInt(10000 - slippageBps)) / 10000n,
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
               //referralValue: 100
