@@ -717,8 +717,8 @@ export class WalletsService {
         fee_usd: swapResult.fee_usd,
         created_at: moment().format(DB_DATE_FORMAT),
         updated_at: moment().format(DB_DATE_FORMAT),
-        service_fee: (amount * 100) / 10000,
-        service_fee_usd: (amount * fromToken.price * 100) / 10000
+        service_fee: wallet.network === Network.TON ? 0.045 :(amount * 100) / 10000,
+        service_fee_usd: wallet.network === Network.TON ? 0.001 :(amount * fromToken.price * 100) / 10000
       });
   
       // Update token balances

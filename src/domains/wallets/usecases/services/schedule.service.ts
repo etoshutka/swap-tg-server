@@ -389,76 +389,86 @@ export class ScheduleService {
     
     
     private async processTonSwap(t: TransactionModel): Promise<void> {
-      const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
+      try {
+        const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
     
-      const queryId: string = t.hash.split(":")[0];
-      let isTonTransactionEnded: boolean = false;
-      const tonTransactionResults: Transaction[] = [];
-      const maxAttempts = 20;
-      let attempts = 0;
+        const queryId: string = t.hash.split(":")[0];
+      
+        let isTonTransactionEnded: boolean = false;
+        const tonTransactionResults: Transaction[] = [];
+      
+        const checkQueryId = (msg: any) => {
+          if (msg?.decodedBody?.queryId && msg.decodedBody.queryId.toString() === queryId) {
+            return true;
+          }
+          if (msg?.payload) {
+            const payloadStr = msg.payload.toString();
+            return payloadStr.includes(`query_id:${queryId}`);
+          }
+          return false;
+        };
     
-      const STONFI_PAYMENT_REQUEST_OPCODE = '0xf93bb43f';
+        const STONFI_PAYMENT_REQUEST_OPCODE = '0xf93bb43f';
+        const JETTON_TRANSFER_OPCODE = '0xf8a7ea5';
+        const JETTON_NOTIFY_OPCODE = '0x7362d09c';
     
-      const checkQueryId = (msg: any) => {
-        if (msg?.decodedBody?.queryId && msg.decodedBody.queryId.toString() === queryId) {
-          return true;
+        const isSwapCompleted = (transactions: Transaction[]) => {
+          if (transactions.length < 2) return false;
+          
+          const hasSwapInitiation = transactions.some(tx => 
+            tx.outMsgs?.some(msg => msg.opCode === STONFI_PAYMENT_REQUEST_OPCODE)
+          );
+          
+          const hasJettonTransfer = transactions.some(tx => 
+            tx.outMsgs?.some(msg => msg.opCode === JETTON_TRANSFER_OPCODE || msg.opCode === JETTON_NOTIFY_OPCODE)
+          );
+    
+          return hasSwapInitiation && hasJettonTransfer;
+        };
+      
+        while (!isTonTransactionEnded) {
+          await new Promise((resolve) => setTimeout(resolve, 10000));
+          const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
+      
+          const relatedTransactions = walletTransactions.transactions.filter((tx) => 
+            tx.outMsgs?.some(checkQueryId) || (tx.inMsg && checkQueryId(tx.inMsg))
+          );
+      
+          tonTransactionResults.push(...relatedTransactions);
+      
+          // Проверяем завершение свопа
+          if (isSwapCompleted(tonTransactionResults)) {
+            isTonTransactionEnded = true;
+          }
         }
-        if (msg?.payload) {
-          const payloadStr = msg.payload.toString();
-          return payloadStr.includes(`query_id:${queryId}`);
-        }
-        return false;
-      };
-    
-      while (!isTonTransactionEnded && attempts < maxAttempts) {
-        attempts++;
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-        const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
-    
-        const relatedTransactions = walletTransactions.transactions.filter((tx) => 
-          tx.outMsgs?.some(checkQueryId) || (tx.inMsg && checkQueryId(tx.inMsg))
+      
+        // Расчет общей комиссии для всех связанных транзакций
+        let txFee: number = tonTransactionResults.reduce((acc, transaction) => acc + Number(transaction.totalFees), 0) / 1e9;
+      
+        const txFeeUsd: number = txFee * tonPrice;
+      
+        // Используем хэш последней транзакции как основной хэш свопа
+        const txHash: string = tonTransactionResults[tonTransactionResults.length - 1]?.hash || '';
+      
+        // Определение статуса свопа
+        const txStatus: TransactionStatus = tonTransactionResults.every(tx => tx.success)
+          ? TransactionStatus.SUCCESS
+          : TransactionStatus.FAILED;
+      
+        await this.transactionRepo.update(
+          { id: t.id }, 
+          { 
+            fee: txFee, 
+            hash: txHash, 
+            status: txStatus, 
+            fee_usd: txFeeUsd 
+          }
         );
-    
-        tonTransactionResults.push(...relatedTransactions);
-    
-        // Проверяем завершение свопа по наличию финальной транзакции с Jetton Transfer или Notify
-        const lastTransaction = relatedTransactions[relatedTransactions.length - 1];
-        if (lastTransaction && lastTransaction.outMsgs?.some(msg => msg.opCode === '0x0f8a7ea5' || msg.opCode === '0x0f8a7ea5')) {
-          isTonTransactionEnded = true;
-        }
+      
+        this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON, related transactions: ${tonTransactionResults.length}`);
+      } catch (error) {
+        this.logger("processTonSwap").error(`Error processing swap transaction ${t.id}: ${error.message}`);
       }
-    
-      if (!isTonTransactionEnded) {
-        this.logger("processTonSwap").warn(`Transaction ${t.id} not fully processed after ${maxAttempts} attempts`);
-        return;
-      }
-    
-      // Расчет комиссии только для транзакций с StonfiPaymentRequest opcode
-      let txFee: number = tonTransactionResults
-        .filter(tx => tx.outMsgs?.some(msg => msg.opCode === STONFI_PAYMENT_REQUEST_OPCODE))
-        .reduce((acc, tx) => acc + Number(tx.totalFees), 0) / 1e9;
-    
-      const txFeeUsd: number = txFee * tonPrice;
-    
-      // Используем хэш последней транзакции как основной хэш свопа
-      const txHash: string = tonTransactionResults[tonTransactionResults.length - 1]?.hash || '';
-    
-      // Определение статуса свопа
-      const txStatus: TransactionStatus = tonTransactionResults.every(tx => tx.success)
-        ? TransactionStatus.SUCCESS
-        : TransactionStatus.FAILED;
-    
-      await this.transactionRepo.update(
-        { id: t.id }, 
-        { 
-          fee: txFee, 
-          hash: txHash, 
-          status: txStatus, 
-          fee_usd: txFeeUsd 
-        }
-      );
-    
-      this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON, related transactions: ${tonTransactionResults.length}`);
     }
     
     @Cron(CronExpression.EVERY_30_SECONDS)
