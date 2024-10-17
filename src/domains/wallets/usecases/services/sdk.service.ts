@@ -786,38 +786,38 @@ export class SdkService {
           if (fromIsNative) {
             // TON to Jetton swap
             txParams = await router.getSwapTonToJettonTxParams({
-              userWalletAddress: fromAddress,
+              userWalletAddress: Address.parse(fromAddress),
               proxyTon: proxyTon,
               offerAmount: toNano(amount),
-              askJettonAddress: toTokenAddress,
+              askJettonAddress: Address.parse(toTokenAddress),
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: 0.1
+              referralValue: toNano(0.1)
             });
           } else if (toIsNative) {
             // Jetton to TON swap
             txParams = await router.getSwapJettonToTonTxParams({
-              userWalletAddress: fromAddress,
-              offerJettonAddress: fromTokenAddress,
+              userWalletAddress: Address.parse(fromAddress),
+              offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toNano(amount),
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
               proxyTon,
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: 0.1
+              referralValue: toNano(0.1)
             });
           } else {
             // Jetton to Jetton swap
             txParams = await router.getSwapJettonToJettonTxParams({
-              userWalletAddress: fromAddress,
-              offerJettonAddress: fromTokenAddress,
+              userWalletAddress: Address.parse(fromAddress),
+              offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toNano(amount),
-              askJettonAddress: toTokenAddress,
+              askJettonAddress: Address.parse(toTokenAddress),
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: 0.1
+              referralValue: toNano(0.1)
             });
           }
         
