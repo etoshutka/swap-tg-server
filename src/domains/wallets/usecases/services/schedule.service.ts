@@ -387,16 +387,14 @@ export class ScheduleService {
       }
     }
     
-    
     private async processTonSwap(t: TransactionModel): Promise<void> {
       const tonPrice: number = (await this.tonSdk.rates.getRates({ tokens: ["TON"], currencies: ["USD"] })).rates.TON.prices.USD;
     
       const queryId: string = t.hash.split(":")[0];
     
-      let isTonTransactionEnded: boolean = false;
       const tonTransactionResults: Transaction[] = [];
     
-      const maxAttempts = 10; // Увеличим максимальное количество попыток
+      const maxAttempts = 30; // Увеличиваем количество попыток
       let attempts = 0;
     
       const checkQueryId = (msg: any) => {
@@ -410,7 +408,7 @@ export class ScheduleService {
         return false;
       };
     
-      while (!isTonTransactionEnded && attempts < maxAttempts) {
+      while (attempts < maxAttempts) {
         attempts++;
         await new Promise((resolve) => setTimeout(resolve, 10000));
         const walletTransactions: Transactions = await this.tonSdk.blockchain.getBlockchainAccountTransactions(Address.parse(t.from));
@@ -422,15 +420,9 @@ export class ScheduleService {
         tonTransactionResults.push(...relatedTransactions);
     
         // Проверяем, завершился ли своп
-        const lastTransaction = relatedTransactions[relatedTransactions.length - 1];
-        if (lastTransaction && (lastTransaction.success || lastTransaction.destroyed || lastTransaction.aborted)) {
-          isTonTransactionEnded = true;
+        if (this.isSwapCompleted(tonTransactionResults)) {
+          break;
         }
-      }
-    
-      if (!isTonTransactionEnded) {
-        this.logger("processTonSwap").warn(`Transaction ${t.id} not fully processed after ${maxAttempts} attempts`);
-        // Можно решить, обновлять ли статус транзакции здесь или нет
       }
     
       // Расчет общей комиссии
@@ -442,9 +434,7 @@ export class ScheduleService {
       const txHash: string = tonTransactionResults[tonTransactionResults.length - 1]?.hash || '';
     
       // Определение статуса свопа
-      const txStatus: TransactionStatus = tonTransactionResults.every(tx => tx.success)
-        ? TransactionStatus.SUCCESS
-        : TransactionStatus.FAILED;
+      const txStatus: TransactionStatus = this.determineSwapStatus(tonTransactionResults);
     
       await this.transactionRepo.update(
         { id: t.id }, 
@@ -457,6 +447,27 @@ export class ScheduleService {
       );
     
       this.logger("processTonSwap").log(`Processed swap transaction ${t.id}, status: ${txStatus}, fee: ${txFee} TON, related transactions: ${tonTransactionResults.length}`);
+    }
+    
+    private isSwapCompleted(transactions: Transaction[]): boolean {
+      // Implement logic to determine if the swap is completed
+      // For example, check if the last transaction is a transfer back to the user's wallet
+      const lastTx = transactions[transactions.length - 1];
+      return lastTx && lastTx.outMsgs && lastTx.outMsgs.some(msg => msg.destination === transactions[0].inMsg?.source);
+    }
+    
+    private determineSwapStatus(transactions: Transaction[]): TransactionStatus {
+      // Implement more complex logic to determine the final status
+      // For example, check if all transactions are successful and the expected token transfer occurred
+      const allSuccessful = transactions.every(tx => tx.success);
+      const expectedTransferOccurred = transactions.some(tx => 
+        tx.outMsgs && tx.outMsgs.some(msg => 
+          msg.destination === transactions[0].inMsg?.source && 
+          msg.value > 0 // Check if the value transferred back is significant
+        )
+      );
+    
+      return allSuccessful && expectedTransferOccurred ? TransactionStatus.SUCCESS : TransactionStatus.FAILED;
     }
     
     @Cron(CronExpression.EVERY_30_SECONDS)
