@@ -760,15 +760,17 @@ export class SdkService {
       
         case Network.TON:
           const client = this.tonSecondSdk
-          const router = client.open(
-            DEX.v2_1.Router.create(
-              "kQALh-JBBIKK7gr0o4AVf9JZnEsFndqO0qTCyT-D-yBsWk0v" // Mainnet Router v2.1.0
-            )
-          );
+          // const router = client.open(
+          //   DEX.v2_1.Router.create(
+          //     "kQALh-JBBIKK7gr0o4AVf9JZnEsFndqO0qTCyT-D-yBsWk0v" // Mainnet Router v2.1.0
+          //   )
+          // );
+
+          const router = client.open(new DEX.v1.Router());
         
-          const proxyTon = pTON.v2_1.create(
-            "kQACS30DNoUQ7NfApPvzh7eBmSZ9L4ygJ-lkNWtba8TQT-Px" // Mainnet pTON v2.1.0
-          );
+          // const proxyTon = pTON.v2_1.create(
+          //   "kQACS30DNoUQ7NfApPvzh7eBmSZ9L4ygJ-lkNWtba8TQT-Px" // Mainnet pTON v2.1.0
+          // );
         
           // Create wallet contract
           const keyPair = await mnemonicToPrivateKey(fromPrivateKey.split(" "));
@@ -787,13 +789,13 @@ export class SdkService {
             // TON to Jetton swap
             txParams = await router.getSwapTonToJettonTxParams({
               userWalletAddress: Address.parse(fromAddress),
-              proxyTon: proxyTon,
+              proxyTon: new pTON.v1(),
               offerAmount: toNano(amount),
               askJettonAddress: Address.parse(toTokenAddress),
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: 100
+             // referralValue: 100
             });
           } else if (toIsNative) {
             // Jetton to TON swap
@@ -802,10 +804,10 @@ export class SdkService {
               offerJettonAddress: Address.parse(fromTokenAddress),
               offerAmount: toNano(amount),
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
-              proxyTon,
+              proxyTon: new pTON.v1(),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: 100
+             // referralValue: 100
             });
           } else {
             // Jetton to Jetton swap
@@ -817,7 +819,7 @@ export class SdkService {
               minAskAmount: BigInt(Math.floor(Number(amount) * (10000 - slippageBps) / 10000)).toString(),
               queryId: Date.now(),
               referralAddress: Address.parse('UQCgxxkc29RVDrfHBMZ3bxzbqYrqp0L4sldjz04_JtH-Gxhw'),
-              referralValue: 100
+              //referralValue: 100
             });
           }
         
